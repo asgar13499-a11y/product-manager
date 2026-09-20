@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">مدیریت محصولات</string>
+    <string name="title_activity_main">مدیریت محصولات</string>
+    <string name="package_name">com.amzenix.productmanager</string>
+    <string name="custom_url_scheme">com.amzenix.productmanager</string>
+</resources>
