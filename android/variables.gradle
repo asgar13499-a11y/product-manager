@@ -1,7 +1,8 @@
+```gradle
 ext {
     minSdkVersion = 24
-    compileSdkVersion = 35
-    targetSdkVersion = 35
+    compileSdkVersion = 36
+    targetSdkVersion = 36
 
     androidxActivityVersion = '1.11.0'
     androidxAppCompatVersion = '1.7.1'
@@ -17,3 +18,4 @@ ext {
 
     cordovaAndroidVersion = '14.0.1'
 }
+```
