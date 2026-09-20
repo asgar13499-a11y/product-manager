@@ -1,4 +1,3 @@
-```yaml
 name: Build Android APK
 
 on:
@@ -12,67 +11,53 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
-      # 1. دریافت سورس پروژه
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. نصب Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
 
-      # 3. نصب Java 21
-      - name: Setup Java 21
+      - name: Setup Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
           cache: gradle
 
-      # 4. نصب Android SDK
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
 
-      # 5. نصب SDK و Build Tools مورد نیاز
       - name: Install Android SDK
         run: |
           yes | sdkmanager --licenses || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-      # 6. نصب پکیج‌های NPM
       - name: Install npm packages
         run: npm install
 
-      # 7. ساخت نسخه Web
       - name: Build Web
         run: npm run build
 
-      # 8. هماهنگ‌سازی Capacitor با Android
       - name: Capacitor Sync
         run: npx cap sync android
 
-      # 9. ساخت APK
-      - name: Build Debug APK
+      - name: Build APK
         working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew clean
           ./gradlew assembleDebug --no-daemon
 
-      # 10. بررسی فایل APK
-      - name: Verify APK
+      - name: Check APK
         run: |
-          echo "APK information:"
           ls -lh android/app/build/outputs/apk/debug/app-debug.apk
           file android/app/build/outputs/apk/debug/app-debug.apk
 
-      # 11. آپلود APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: product-manager-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
-```
