@@ -1,6 +1,7 @@
 import "./style.css";
 
 import { supabase } from "./supabase.js";
+
 import {
   getSession,
   signIn,
@@ -8,21 +9,10 @@ import {
 } from "./auth.js";
 
 import { Capacitor } from "@capacitor/core";
+
 import {
   LocalNotifications
 } from "@capacitor/local-notifications";
-
-import {
-  toGregorian,
-  toJalaali,
-  todayJalali,
-  isValidJalaliDate,
-  jalaliMonthDays,
-  jalaliDate,
-  compareDates,
-  difference,
-  isLeapJalaliYear
-} from "./jalali.js";
 
 
 /* =========================================================
@@ -34,13 +24,9 @@ let products = [];
 let productionDate = null;
 let expiryDate = null;
 
-let productionCalendar = "jalali";
-let expiryCalendar = "jalali";
-
 let selectedImage = "";
 
 let calendarType = null;
-let calendarMode = "jalali";
 
 let calendarYear = null;
 let calendarMonth = null;
@@ -54,35 +40,21 @@ const STORAGE_KEY = "products";
    MONTH NAMES
 ========================================================= */
 
-const JALALI_MONTHS = [
-  "فروردین",
-  "اردیبهشت",
-  "خرداد",
-  "تیر",
-  "مرداد",
-  "شهریور",
-  "مهر",
-  "آبان",
-  "آذر",
-  "دی",
-  "بهمن",
-  "اسفند"
+const MONTHS = [
+  "ژانویه",
+  "فوریه",
+  "مارس",
+  "آوریل",
+  "مه",
+  "ژوئن",
+  "ژوئیه",
+  "اوت",
+  "سپتامبر",
+  "اکتبر",
+  "نوامبر",
+  "دسامبر"
 ];
 
-const HIJRI_MONTHS = [
-  "محرم",
-  "صفر",
-  "ربیع‌الاول",
-  "ربیع‌الثانی",
-  "جمادی‌الاول",
-  "جمادی‌الثانی",
-  "رجب",
-  "شعبان",
-  "رمضان",
-  "شوال",
-  "ذوالقعده",
-  "ذوالحجه"
-];
 
 const WEEK_DAYS = [
   "ش",
@@ -110,6 +82,7 @@ function pad(number) {
   return String(number).padStart(2, "0");
 }
 
+
 function faNumbers(value) {
   return String(value)
     .replace(/0/g, "۰")
@@ -124,6 +97,7 @@ function faNumbers(value) {
     .replace(/9/g, "۹");
 }
 
+
 function escapeHTML(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -132,6 +106,7 @@ function escapeHTML(value) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
 
 function uid() {
   return (
@@ -142,54 +117,55 @@ function uid() {
 
 
 /* =========================================================
-   HIJRI / ISLAMIC CALENDAR
+   GREGORIAN DATE HELPERS
 ========================================================= */
 
-/*
-  Islamic civil calendar calculations.
+function getToday() {
+  const now = new Date();
 
-  Internally the application still stores Jalali dates.
-  When user selects Hijri, we convert:
+  return {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+    day: now.getDate()
+  };
+}
 
-  Hijri -> Gregorian -> Jalali
 
-  This means the existing database structure can stay unchanged.
-*/
-
-
-function islamicLeapYear(year) {
-  year = Number(year);
-
+function isLeapYear(year) {
   return (
-    ((11 * year + 14) % 30) < 11
+    year % 4 === 0 &&
+    (
+      year % 100 !== 0 ||
+      year % 400 === 0
+    )
   );
 }
 
 
-function hijriMonthDays(year, month) {
-  year = Number(year);
-  month = Number(month);
-
+function gregorianMonthDays(
+  year,
+  month
+) {
   if (
-    month < 1 ||
-    month > 12
+    month === 2
   ) {
-    return 0;
+    return isLeapYear(year)
+      ? 29
+      : 28;
   }
 
-  if (month === 12) {
-    return islamicLeapYear(year)
-      ? 30
-      : 29;
-  }
-
-  return month % 2 === 1
+  return [
+    4,
+    6,
+    9,
+    11
+  ].includes(month)
     ? 30
-    : 29;
+    : 31;
 }
 
 
-function isValidHijriDate(
+function isValidGregorianDate(
   year,
   month,
   day
@@ -207,7 +183,7 @@ function isValidHijriDate(
   }
 
   if (
-    year < 1 ||
+    year < 1900 ||
     month < 1 ||
     month > 12 ||
     day < 1
@@ -215,304 +191,222 @@ function isValidHijriDate(
     return false;
   }
 
-  return day <=
-    hijriMonthDays(
+  return (
+    day <=
+    gregorianMonthDays(
       year,
       month
-    );
-}
-
-
-/*
-  Julian Day conversion
-*/
-
-function gregorianToJD(
-  year,
-  month,
-  day
-) {
-  year = Number(year);
-  month = Number(month);
-  day = Number(day);
-
-  let a =
-    Math.floor(
-      (14 - month) / 12
-    );
-
-  let y =
-    year + 4800 - a;
-
-  let m =
-    month + 12 * a - 3;
-
-  return (
-    day +
-    Math.floor(
-      (153 * m + 2) / 5
-    ) +
-    365 * y +
-    Math.floor(y / 4) -
-    Math.floor(y / 100) +
-    Math.floor(y / 400) -
-    32045
+    )
   );
 }
 
 
-function jdToGregorian(jd) {
-  jd = Math.floor(jd);
-
-  let a = jd + 32044;
-
-  let b =
-    Math.floor(
-      (4 * a + 3) / 146097
-    );
-
-  let c =
-    a -
-    Math.floor(
-      (146097 * b) / 4
-    );
-
-  let d =
-    Math.floor(
-      (4 * c + 3) / 1461
-    );
-
-  let e =
-    c -
-    Math.floor(
-      (1461 * d) / 4
-    );
-
-  let m =
-    Math.floor(
-      (5 * e + 2) / 153
-    );
-
-  let day =
-    e -
-    Math.floor(
-      (153 * m + 2) / 5
-    ) +
-    1;
-
-  let month =
-    m +
-    3 -
-    12 *
-      Math.floor(m / 10);
-
-  let year =
-    100 * b +
-    d -
-    4800 +
-    Math.floor(m / 10);
+function dateToObject(date) {
+  if (!date) {
+    return null;
+  }
 
   return {
-    gy: year,
-    gm: month,
-    gd: day
+    year: Number(date.year),
+    month: Number(date.month),
+    day: Number(date.day)
   };
 }
 
 
-function hijriToJD(
-  year,
-  month,
-  day
-) {
-  year = Number(year);
-  month = Number(month);
-  day = Number(day);
+function dateObjectToJS(date) {
+  if (!date) {
+    return null;
+  }
 
-  return (
-    day +
-    Math.ceil(
-      29.5 * (month - 1)
-    ) +
-    (year - 1) * 354 +
-    Math.floor(
-      (3 + 11 * year) / 30
-    ) +
-    1948439 -
-    1
+  return new Date(
+    Number(date.year),
+    Number(date.month) - 1,
+    Number(date.day),
+    0,
+    0,
+    0,
+    0
   );
 }
 
 
-function jdToHijri(jd) {
-  jd = Math.floor(jd);
+function jsDateToObject(date) {
+  if (!date) {
+    return null;
+  }
 
-  let year =
-    Math.floor(
-      (30 * (jd - 1948439) + 10646) /
-      10631
-    );
+  return {
+    year: date.getFullYear(),
+    month: date.getMonth() + 1,
+    day: date.getDate()
+  };
+}
 
-  let month =
-    Math.min(
-      12,
-      Math.ceil(
-        (jd -
-          (29 +
-            hijriToJD(
-              year,
-              1,
-              1
-            ))) /
-          29.5
-      ) + 1
-    );
 
-  let day =
-    jd -
-    hijriToJD(
+function compareDates(
+  first,
+  second
+) {
+  const a =
+    dateObjectToJS(first);
+
+  const b =
+    dateObjectToJS(second);
+
+  if (!a || !b) {
+    return 0;
+  }
+
+  if (a.getTime() < b.getTime()) {
+    return -1;
+  }
+
+  if (a.getTime() > b.getTime()) {
+    return 1;
+  }
+
+  return 0;
+}
+
+
+/* =========================================================
+   EXACT MONTH ADDITION
+========================================================= */
+
+function addMonths(
+  date,
+  amount
+) {
+  if (!date) {
+    return null;
+  }
+
+  const year =
+    Number(date.year);
+
+  const month =
+    Number(date.month);
+
+  const day =
+    Number(date.day);
+
+  const target =
+    new Date(
       year,
-      month,
+      month - 1,
       1
-    ) +
-    1;
+    );
+
+  target.setMonth(
+    target.getMonth() + amount
+  );
+
+  const targetYear =
+    target.getFullYear();
+
+  const targetMonth =
+    target.getMonth() + 1;
+
+  const maxDay =
+    gregorianMonthDays(
+      targetYear,
+      targetMonth
+    );
+
+  const targetDay =
+    Math.min(
+      day,
+      maxDay
+    );
 
   return {
-    hy: year,
-    hm: month,
-    hd: day
+    year: targetYear,
+    month: targetMonth,
+    day: targetDay
   };
 }
 
 
-function hijriToGregorian(
-  year,
-  month,
-  day
-) {
-  return jdToGregorian(
-    hijriToJD(
-      year,
-      month,
-      day
-    )
-  );
-}
-
-
-function gregorianToHijri(
-  year,
-  month,
-  day
-) {
-  return jdToHijri(
-    gregorianToJD(
-      year,
-      month,
-      day
-    )
-  );
-}
-
-
 /* =========================================================
-   TODAY
+   EXACT DIFFERENCE
 ========================================================= */
 
-function getToday() {
-  return todayJalali();
-}
-
-
-function getTodayHijri() {
-  const now = new Date();
-
-  return gregorianToHijri(
-    now.getFullYear(),
-    now.getMonth() + 1,
-    now.getDate()
-  );
-}
-
-
-/* =========================================================
-   DATE CONVERSIONS
-========================================================= */
-
-function jalaliToGregorianObject(date) {
-  if (!date) {
-    return null;
-  }
-
-  return toGregorian(
-    date.year,
-    date.month,
-    date.day
-  );
-}
-
-
-function jalaliToHijriObject(date) {
-  const gregorian =
-    jalaliToGregorianObject(date);
-
-  if (!gregorian) {
-    return null;
-  }
-
-  return gregorianToHijri(
-    gregorian.gy,
-    gregorian.gm,
-    gregorian.gd
-  );
-}
-
-
-function hijriToJalaliObject(date) {
-  if (!date) {
-    return null;
-  }
-
-  const gregorian =
-    hijriToGregorian(
-      date.year,
-      date.month,
-      date.day
-    );
-
-  return toJalaali(
-    gregorian.gy,
-    gregorian.gm,
-    gregorian.gd
-  );
-}
-
-
-function getDisplayDate(
-  jalali,
-  mode = "jalali"
+function difference(
+  start,
+  end
 ) {
-  if (!jalali) {
-    return null;
-  }
-
-  if (mode === "hijri") {
-    const h =
-      jalaliToHijriObject(
-        jalali
-      );
-
+  if (!start || !end) {
     return {
-      year: h.hy,
-      month: h.hm,
-      day: h.hd
+      years: 0,
+      months: 0,
+      days: 0
     };
   }
 
+  let startDate =
+    dateObjectToJS(start);
+
+  const endDate =
+    dateObjectToJS(end);
+
+  if (
+    !startDate ||
+    !endDate
+  ) {
+    return {
+      years: 0,
+      months: 0,
+      days: 0
+    };
+  }
+
+  if (
+    startDate.getTime() >
+    endDate.getTime()
+  ) {
+    return {
+      years: 0,
+      months: 0,
+      days: 0
+    };
+  }
+
+  let years =
+    endDate.getFullYear() -
+    startDate.getFullYear();
+
+  let months =
+    endDate.getMonth() -
+    startDate.getMonth();
+
+  let days =
+    endDate.getDate() -
+    startDate.getDate();
+
+  if (days < 0) {
+    months--;
+
+    const previousMonth =
+      new Date(
+        endDate.getFullYear(),
+        endDate.getMonth(),
+        0
+      );
+
+    days +=
+      previousMonth.getDate();
+  }
+
+  if (months < 0) {
+    years--;
+    months += 12;
+  }
+
   return {
-    year: jalali.year,
-    month: jalali.month,
-    day: jalali.day
+    years,
+    months,
+    days
   };
 }
 
@@ -522,33 +416,15 @@ function getDisplayDate(
 ========================================================= */
 
 function formatDate(
-  date,
-  mode = "jalali"
+  date
 ) {
   if (!date) {
     return "انتخاب نشده";
   }
 
-  const d =
-    getDisplayDate(
-      date,
-      mode
-    );
-
-  if (!d) {
-    return "انتخاب نشده";
-  }
-
   return faNumbers(
-    `${d.year}/${pad(d.month)}/${pad(d.day)}`
+    `${date.year}/${pad(date.month)}/${pad(date.day)}`
   );
-}
-
-
-function calendarName(mode) {
-  return mode === "hijri"
-    ? "هجری قمری"
-    : "هجری شمسی";
 }
 
 
@@ -575,7 +451,9 @@ function loadLocalProducts() {
     }
 
     return parsed;
+
   } catch (error) {
+
     console.error(
       "Local products error:",
       error
@@ -588,11 +466,14 @@ function loadLocalProducts() {
 
 function saveLocalProducts() {
   try {
+
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify(products)
     );
+
   } catch (error) {
+
     console.error(
       "Local save error:",
       error
@@ -605,15 +486,8 @@ function saveLocalProducts() {
    DATABASE MAPPING
 ========================================================= */
 
-/*
-  IMPORTANT:
-
-  image is intentionally NOT sent to Supabase.
-
-  Product images remain local on the phone.
-*/
-
 function toDbProduct(product) {
+
   return {
     id: product.id,
 
@@ -621,30 +495,49 @@ function toDbProduct(product) {
       product.user_id ||
       currentSession?.user?.id,
 
-    name: product.name,
+    name:
+      product.name,
 
-    type: product.type || "",
+    type:
+      product.type || "",
 
     quantity:
       Number(product.quantity) || 0,
 
+    /*
+      IMPORTANT:
+      Dates are now Gregorian.
+    */
+
     production_year:
-      Number(product.productionDate?.year),
+      Number(
+        product.productionDate?.year
+      ),
 
     production_month:
-      Number(product.productionDate?.month),
+      Number(
+        product.productionDate?.month
+      ),
 
     production_day:
-      Number(product.productionDate?.day),
+      Number(
+        product.productionDate?.day
+      ),
 
     expiry_year:
-      Number(product.expiryDate?.year),
+      Number(
+        product.expiryDate?.year
+      ),
 
     expiry_month:
-      Number(product.expiryDate?.month),
+      Number(
+        product.expiryDate?.month
+      ),
 
     expiry_day:
-      Number(product.expiryDate?.day),
+      Number(
+        product.expiryDate?.day
+      ),
 
     created_at:
       product.createdAt ||
@@ -654,8 +547,11 @@ function toDbProduct(product) {
 
 
 function fromDbProduct(row) {
+
   return {
-    id: row.id,
+
+    id:
+      row.id,
 
     user_id:
       row.user_id ||
@@ -693,16 +589,10 @@ function fromDbProduct(row) {
     },
 
     /*
-      Images are restored from localStorage
-      after cloud loading.
+      Image is ALWAYS local.
     */
+
     image: "",
-
-    productionCalendar:
-      "jalali",
-
-    expiryCalendar:
-      "jalali",
 
     createdAt:
       row.created_at ||
@@ -716,6 +606,7 @@ function fromDbProduct(row) {
 ========================================================= */
 
 async function loadProductsFromCloud() {
+
   const localProducts =
     loadLocalProducts();
 
@@ -723,10 +614,16 @@ async function loadProductsFromCloud() {
     localProducts;
 
   try {
-    if (!currentSession?.user?.id) {
+
+    if (
+      !currentSession?.user?.id
+    ) {
+
       renderApp();
+
       return;
     }
+
 
     const {
       data,
@@ -745,24 +642,27 @@ async function loadProductsFromCloud() {
         }
       );
 
+
     if (error) {
+
       console.error(
         "Cloud load error:",
         error
       );
 
       renderApp();
+
       return;
     }
 
+
     const cloudProducts =
       Array.isArray(data)
-        ? data.map(fromDbProduct)
+        ? data.map(
+            fromDbProduct
+          )
         : [];
 
-    /*
-      Keep local images and calendar mode.
-    */
 
     const localMap =
       new Map(
@@ -774,9 +674,11 @@ async function loadProductsFromCloud() {
         )
       );
 
+
     products =
       cloudProducts.map(
         cloudProduct => {
+
           const local =
             localMap.get(
               String(
@@ -784,43 +686,45 @@ async function loadProductsFromCloud() {
               )
             );
 
+
           return {
             ...cloudProduct,
+
+            /*
+              Restore image from phone.
+            */
 
             image:
               local?.image ||
               "",
 
-            productionCalendar:
-              local?.productionCalendar ||
-              "jalali",
-
-            expiryCalendar:
-              local?.expiryCalendar ||
-              "jalali"
           };
         }
       );
 
 
     /*
-      If cloud is empty but local products exist,
-      migrate local products to Supabase.
+      If cloud is empty,
+      migrate local products.
     */
 
     if (
       cloudProducts.length === 0 &&
       localProducts.length > 0
     ) {
+
       for (
         const product
         of localProducts
       ) {
+
         try {
+
           const dbProduct =
             toDbProduct(
               product
             );
+
 
           const {
             error:
@@ -831,13 +735,17 @@ async function loadProductsFromCloud() {
               dbProduct
             );
 
+
           if (insertError) {
+
             console.error(
               "Migration error:",
               insertError
             );
           }
+
         } catch (error) {
+
           console.error(
             "Migration exception:",
             error
@@ -845,19 +753,23 @@ async function loadProductsFromCloud() {
         }
       }
 
+
       /*
-        DO NOT remove localStorage.
-        Images must remain on device.
+        Keep local products.
+        Images must stay on device.
       */
+
       products =
         localProducts;
     }
+
 
     saveLocalProducts();
 
     renderApp();
 
   } catch (error) {
+
     console.error(
       "Load products exception:",
       error
@@ -876,6 +788,7 @@ async function loadProductsFromCloud() {
 ========================================================= */
 
 async function saveProduct() {
+
   const form =
     document.querySelector(
       "#productForm"
@@ -885,34 +798,29 @@ async function saveProduct() {
     return;
   }
 
-  const nameInput =
-    document.querySelector(
-      "#productName"
-    );
-
-  const typeInput =
-    document.querySelector(
-      "#productType"
-    );
-
-  const quantityInput =
-    document.querySelector(
-      "#productQuantity"
-    );
 
   const name =
-    nameInput?.value.trim() || "";
+    document.querySelector(
+      "#productName"
+    )?.value.trim() || "";
+
 
   const type =
-    typeInput?.value.trim() || "";
+    document.querySelector(
+      "#productType"
+    )?.value.trim() || "";
+
 
   const quantity =
     Number(
-      quantityInput?.value
+      document.querySelector(
+        "#productQuantity"
+      )?.value
     ) || 0;
 
 
   if (!name) {
+
     alert(
       "لطفاً نام محصول را وارد کنید."
     );
@@ -922,6 +830,7 @@ async function saveProduct() {
 
 
   if (quantity < 0) {
+
     alert(
       "تعداد محصول معتبر نیست."
     );
@@ -931,6 +840,7 @@ async function saveProduct() {
 
 
   if (!productionDate) {
+
     alert(
       "لطفاً تاریخ تولید را انتخاب کنید."
     );
@@ -940,6 +850,7 @@ async function saveProduct() {
 
 
   if (!expiryDate) {
+
     alert(
       "لطفاً تاریخ انقضا را انتخاب کنید."
     );
@@ -949,12 +860,13 @@ async function saveProduct() {
 
 
   if (
-    !isValidJalaliDate(
+    !isValidGregorianDate(
       productionDate.year,
       productionDate.month,
       productionDate.day
     )
   ) {
+
     alert(
       "تاریخ تولید معتبر نیست."
     );
@@ -964,12 +876,13 @@ async function saveProduct() {
 
 
   if (
-    !isValidJalaliDate(
+    !isValidGregorianDate(
       expiryDate.year,
       expiryDate.month,
       expiryDate.day
     )
   ) {
+
     alert(
       "تاریخ انقضا معتبر نیست."
     );
@@ -984,6 +897,7 @@ async function saveProduct() {
       expiryDate
     ) > 0
   ) {
+
     alert(
       "تاریخ تولید نمی‌تواند بعد از تاریخ انقضا باشد."
     );
@@ -997,8 +911,12 @@ async function saveProduct() {
       "#saveProductButton"
     );
 
+
   if (button) {
-    button.disabled = true;
+
+    button.disabled =
+      true;
+
     button.textContent =
       "در حال ذخیره...";
   }
@@ -1012,6 +930,7 @@ async function saveProduct() {
 
 
   if (editingProductId) {
+
     const oldProduct =
       products.find(
         item =>
@@ -1019,7 +938,9 @@ async function saveProduct() {
           String(editingProductId)
       );
 
+
     product = {
+
       ...oldProduct,
 
       name,
@@ -1036,10 +957,6 @@ async function saveProduct() {
         ...expiryDate
       },
 
-      productionCalendar,
-
-      expiryCalendar,
-
       image:
         selectedImage ||
         oldProduct?.image ||
@@ -1051,7 +968,9 @@ async function saveProduct() {
     };
 
   } else {
+
     product = {
+
       id: uid(),
 
       user_id:
@@ -1071,17 +990,15 @@ async function saveProduct() {
         ...expiryDate
       },
 
-      productionCalendar,
-
-      expiryCalendar,
-
       /*
         Image stays local.
       */
+
       image:
         selectedImage || "",
 
-      createdAt: now
+      createdAt:
+        now
     };
   }
 
@@ -1112,6 +1029,7 @@ async function saveProduct() {
           currentSession.user.id
         );
 
+
       if (error) {
         throw error;
       }
@@ -1136,9 +1054,11 @@ async function saveProduct() {
           dbProduct
         );
 
+
       if (error) {
         throw error;
       }
+
 
       products.unshift(
         product
@@ -1146,15 +1066,13 @@ async function saveProduct() {
     }
 
 
-    /*
-      Save image locally.
-    */
     saveLocalProducts();
 
 
     /*
-      Notifications.
+      Schedule exact 4-month notification.
     */
+
     await scheduleProductNotifications(
       product
     );
@@ -1168,12 +1086,6 @@ async function saveProduct() {
 
     expiryDate =
       null;
-
-    productionCalendar =
-      "jalali";
-
-    expiryCalendar =
-      "jalali";
 
     selectedImage =
       "";
@@ -1191,6 +1103,7 @@ async function saveProduct() {
       error
     );
 
+
     alert(
       "خطایی هنگام ذخیره محصول رخ داد.\n\n" +
       (
@@ -1202,12 +1115,12 @@ async function saveProduct() {
   } finally {
 
     if (button) {
-      button.disabled = false;
+
+      button.disabled =
+        false;
 
       button.textContent =
-        editingProductId
-          ? "ذخیره تغییرات"
-          : "ذخیره محصول";
+        "ذخیره محصول";
     }
   }
 }
@@ -1220,12 +1133,14 @@ async function saveProduct() {
 async function deleteProduct(
   productId
 ) {
+
   const product =
     products.find(
       item =>
         String(item.id) ===
         String(productId)
     );
+
 
   if (!product) {
     return;
@@ -1237,6 +1152,7 @@ async function deleteProduct(
       `آیا از حذف «${product.name}» مطمئن هستید؟`
     );
 
+
   if (!confirmed) {
     return;
   }
@@ -1247,6 +1163,7 @@ async function deleteProduct(
     if (
       currentSession?.user?.id
     ) {
+
       const {
         error
       } = await supabase
@@ -1260,6 +1177,7 @@ async function deleteProduct(
           "user_id",
           currentSession.user.id
         );
+
 
       if (error) {
         throw error;
@@ -1284,12 +1202,14 @@ async function deleteProduct(
 
     renderProducts();
 
+
   } catch (error) {
 
     console.error(
       "Delete error:",
       error
     );
+
 
     alert(
       "حذف محصول انجام نشد."
@@ -1303,6 +1223,7 @@ async function deleteProduct(
 ========================================================= */
 
 async function setupNotifications() {
+
   if (
     Capacitor.getPlatform() ===
     "web"
@@ -1310,21 +1231,25 @@ async function setupNotifications() {
     return;
   }
 
+
   try {
 
     const permission =
       await LocalNotifications
         .checkPermissions();
 
+
     if (
       permission.display !==
       "granted"
     ) {
+
       await LocalNotifications
         .requestPermissions();
     }
 
   } catch (error) {
+
     console.error(
       "Notification permission error:",
       error
@@ -1333,22 +1258,21 @@ async function setupNotifications() {
 }
 
 
+/*
+  Convert Gregorian product date
+  to JS notification date.
+*/
+
 function getNotificationDate(
-  jalali,
+  date,
   hour = 9,
   minute = 0
 ) {
-  const gregorian =
-    toGregorian(
-      jalali.year,
-      jalali.month,
-      jalali.day
-    );
 
   return new Date(
-    gregorian.gy,
-    gregorian.gm - 1,
-    gregorian.gd,
+    date.year,
+    date.month - 1,
+    date.day,
     hour,
     minute,
     0,
@@ -1357,20 +1281,27 @@ function getNotificationDate(
 }
 
 
+/* =========================================================
+   NOTIFICATION ID
+========================================================= */
+
 function notificationId(
   productId,
   type
 ) {
+
   let hash = 0;
 
   const value =
     `${productId}-${type}`;
+
 
   for (
     let i = 0;
     i < value.length;
     i++
   ) {
+
     hash =
       (
         hash * 31 +
@@ -1378,16 +1309,25 @@ function notificationId(
       ) >>> 0;
   }
 
+
   return (
     100000 +
-    (hash % 1900000000)
+    (
+      hash %
+      1900000000
+    )
   );
 }
 
 
+/* =========================================================
+   CANCEL NOTIFICATIONS
+========================================================= */
+
 async function cancelProductNotifications(
   productId
 ) {
+
   if (
     Capacitor.getPlatform() ===
     "web"
@@ -1395,31 +1335,29 @@ async function cancelProductNotifications(
     return;
   }
 
+
   try {
 
     const ids = [
-      notificationId(
-        productId,
-        "3days"
-      ),
 
       notificationId(
         productId,
-        "1day"
-      ),
-
-      notificationId(
-        productId,
-        "expiry"
+        "4months"
       )
+
     ];
+
 
     await LocalNotifications
       .cancel({
+
         notifications:
-          ids.map(id => ({
-            id
-          }))
+          ids.map(
+            id => ({
+              id
+            })
+          )
+
       });
 
   } catch (error) {
@@ -1432,15 +1370,21 @@ async function cancelProductNotifications(
 }
 
 
+/* =========================================================
+   SCHEDULE 4 MONTH NOTIFICATION
+========================================================= */
+
 async function scheduleProductNotifications(
   product
 ) {
+
   if (
     Capacitor.getPlatform() ===
     "web"
   ) {
     return;
   }
+
 
   try {
 
@@ -1449,28 +1393,31 @@ async function scheduleProductNotifications(
     );
 
 
-    const expiry =
-      getNotificationDate(
+    /*
+      Exact calendar calculation:
+
+      expiry:
+      2026/09/25
+
+      notification:
+      2026/05/25
+
+      NOT:
+      120 days.
+    */
+
+    const fourMonthsBefore =
+      addMonths(
         product.expiryDate,
+        -4
+      );
+
+
+    const notificationDate =
+      getNotificationDate(
+        fourMonthsBefore,
         9,
         0
-      );
-
-
-    const notifications = [];
-
-
-    const threeDays =
-      new Date(
-        expiry.getTime() -
-        3 * 24 * 60 * 60 * 1000
-      );
-
-
-    const oneDay =
-      new Date(
-        expiry.getTime() -
-        24 * 60 * 60 * 1000
       );
 
 
@@ -1479,82 +1426,41 @@ async function scheduleProductNotifications(
 
 
     if (
-      threeDays > now
+      notificationDate <= now
     ) {
-      notifications.push({
-        id:
-          notificationId(
-            product.id,
-            "3days"
-          ),
+      return;
+    }
 
-        title:
-          "محصول نزدیک به انقضا",
 
-        body:
-          `محصول «${product.name}» تا ۳ روز دیگر منقضی می‌شود.`,
+    await LocalNotifications
+      .schedule({
 
-        schedule: {
-          at: threeDays
-        }
+        notifications: [
+
+          {
+
+            id:
+              notificationId(
+                product.id,
+                "4months"
+              ),
+
+            title:
+              "هشدار انقضا",
+
+            body:
+              "یک محصول در حال انقضا هست",
+
+            schedule: {
+              at:
+                notificationDate
+            }
+
+          }
+
+        ]
+
       });
-    }
-
-
-    if (
-      oneDay > now
-    ) {
-      notifications.push({
-        id:
-          notificationId(
-            product.id,
-            "1day"
-          ),
-
-        title:
-          "هشدار انقضای محصول",
-
-        body:
-          `محصول «${product.name}» فردا منقضی می‌شود.`,
-
-        schedule: {
-          at: oneDay
-        }
-      });
-    }
-
-
-    if (
-      expiry > now
-    ) {
-      notifications.push({
-        id:
-          notificationId(
-            product.id,
-            "expiry"
-          ),
-
-        title:
-          "امروز تاریخ انقضای محصول است",
-
-        body:
-          `محصول «${product.name}» امروز منقضی می‌شود.`,
-
-        schedule: {
-          at: expiry
-        }
-      });
-    }
-
-
-    if (
-      notifications.length
-    ) {
-      await LocalNotifications
-        .schedule({
-          notifications
-        });
-    }
 
   } catch (error) {
 
@@ -1570,32 +1476,12 @@ async function scheduleProductNotifications(
    DATE STATUS
 ========================================================= */
 
-function dateDifferenceText(
-  start,
-  end
-) {
-  if (!start || !end) {
-    return "";
-  }
-
-  const result =
-    difference(
-      start,
-      end
-    );
-
-  return (
-    `${faNumbers(result.years)} سال، ` +
-    `${faNumbers(result.months)} ماه و ` +
-    `${faNumbers(result.days)} روز`
-  );
-}
-
-
 function getDateStatus(
   expiry
 ) {
+
   if (!expiry) {
+
     return {
       type: "",
       text: ""
@@ -1614,7 +1500,10 @@ function getDateStatus(
     );
 
 
-  if (comparison < 0) {
+  if (
+    comparison < 0
+  ) {
+
     return {
       type: "expired",
       text: "منقضی شده"
@@ -1622,37 +1511,27 @@ function getDateStatus(
   }
 
 
-  const diff =
-    difference(
+  /*
+    Exact 4-month boundary.
+  */
+
+  const fourMonthsLater =
+    addMonths(
       today,
-      expiry
-    );
-
-
-  const totalDays =
-    Math.round(
-      (
-        jalaliDate(
-          expiry.year,
-          expiry.month,
-          expiry.day
-        ).getTime() -
-        jalaliDate(
-          today.year,
-          today.month,
-          today.day
-        ).getTime()
-      ) /
-      86400000
+      4
     );
 
 
   if (
-    totalDays <= 120
+    compareDates(
+      expiry,
+      fourMonthsLater
+    ) <= 0
   ) {
+
     return {
       type: "warning",
-      text: "نزدیک به انقضا"
+      text: "در حال انقضا"
     };
   }
 
@@ -1664,9 +1543,14 @@ function getDateStatus(
 }
 
 
+/* =========================================================
+   REMAINING TEXT
+========================================================= */
+
 function remainingText(
   expiry
 ) {
+
   if (!expiry) {
     return "";
   }
@@ -1682,49 +1566,19 @@ function remainingText(
       today
     ) < 0
   ) {
+
     return "محصول منقضی شده است";
   }
 
 
-  const totalDays =
-    Math.max(
-      0,
-      Math.round(
-        (
-          jalaliDate(
-            expiry.year,
-            expiry.month,
-            expiry.day
-          ).getTime() -
-          jalaliDate(
-            today.year,
-            today.month,
-            today.day
-          ).getTime()
-        ) /
-        86400000
-      )
-    );
-
-
   if (
-    totalDays === 0
+    compareDates(
+      expiry,
+      today
+    ) === 0
   ) {
+
     return "امروز منقضی می‌شود";
-  }
-
-
-  if (
-    totalDays === 1
-  ) {
-    return "۱ روز باقی مانده";
-  }
-
-
-  if (
-    totalDays <= 120
-  ) {
-    return `${faNumbers(totalDays)} روز باقی مانده`;
   }
 
 
@@ -1739,18 +1593,23 @@ function remainingText(
 
 
   if (diff.years) {
+
     parts.push(
       `${faNumbers(diff.years)} سال`
     );
   }
 
+
   if (diff.months) {
+
     parts.push(
       `${faNumbers(diff.months)} ماه`
     );
   }
 
+
   if (diff.days) {
+
     parts.push(
       `${faNumbers(diff.days)} روز`
     );
@@ -1769,11 +1628,21 @@ function remainingText(
 ========================================================= */
 
 function appShell() {
-  return `
-    <div class="app" id="app">
-      <div id="appContent"></div>
 
-      <nav class="bottom-nav">
+  return `
+    <div
+      class="app"
+      id="app"
+    >
+
+      <div
+        id="appContent"
+      ></div>
+
+
+      <nav
+        class="bottom-nav"
+      >
 
         <button
           class="nav-item active"
@@ -1784,6 +1653,7 @@ function appShell() {
           <small>خانه</small>
         </button>
 
+
         <button
           class="nav-item"
           data-page="products"
@@ -1793,6 +1663,7 @@ function appShell() {
           <small>محصولات</small>
         </button>
 
+
         <button
           class="nav-item add-button"
           data-page="add"
@@ -1800,6 +1671,7 @@ function appShell() {
         >
           <span>＋</span>
         </button>
+
 
         <button
           class="nav-item"
@@ -1809,6 +1681,7 @@ function appShell() {
           <span>🔔</span>
           <small>هشدارها</small>
         </button>
+
 
         <button
           class="nav-item"
@@ -1820,6 +1693,7 @@ function appShell() {
         </button>
 
       </nav>
+
     </div>
   `;
 }
@@ -1833,24 +1707,35 @@ function normalHeader(
   title,
   subtitle = ""
 ) {
-  return `
-    <header class="topbar">
 
-      <div class="header-icon">
+  return `
+    <header
+      class="topbar"
+    >
+
+      <div
+        class="header-icon"
+      >
         📦
       </div>
 
-      <div class="page-title">
+
+      <div
+        class="page-title"
+      >
 
         <h1>
           ${escapeHTML(title)}
         </h1>
 
+
         ${
           subtitle
             ? `
               <p>
-                ${escapeHTML(subtitle)}
+                ${escapeHTML(
+                  subtitle
+                )}
               </p>
             `
             : ""
@@ -1858,7 +1743,10 @@ function normalHeader(
 
       </div>
 
-      <div style="width:48px"></div>
+
+      <div
+        style="width:48px"
+      ></div>
 
     </header>
   `;
@@ -1868,8 +1756,11 @@ function normalHeader(
 function backHeader(
   title
 ) {
+
   return `
-    <header class="topbar">
+    <header
+      class="topbar"
+    >
 
       <button
         class="back-button"
@@ -1879,7 +1770,10 @@ function backHeader(
         →
       </button>
 
-      <div class="page-title">
+
+      <div
+        class="page-title"
+      >
 
         <h1>
           ${escapeHTML(title)}
@@ -1887,7 +1781,10 @@ function backHeader(
 
       </div>
 
-      <div style="width:45px"></div>
+
+      <div
+        style="width:45px"
+      ></div>
 
     </header>
   `;
@@ -1899,21 +1796,14 @@ function backHeader(
 ========================================================= */
 
 function renderHome() {
-  const valid =
-    products.filter(
-      p =>
-        getDateStatus(
-          p.expiryDate
-        ).type !== "expired"
-    ).length;
-
 
   const warning =
     products.filter(
       p =>
         getDateStatus(
           p.expiryDate
-        ).type === "warning"
+        ).type ===
+        "warning"
     ).length;
 
 
@@ -1922,7 +1812,8 @@ function renderHome() {
       p =>
         getDateStatus(
           p.expiryDate
-        ).type === "expired"
+        ).type ===
+        "expired"
     ).length;
 
 
@@ -1937,28 +1828,39 @@ function renderHome() {
             a.createdAt
           )
       )
-      .slice(0, 5);
+      .slice(
+        0,
+        5
+      );
 
 
   return `
+
     ${normalHeader(
       "مدیریت محصولات",
       "مدیریت تاریخ تولید و انقضا"
     )}
 
+
     <main>
 
-      <section class="welcome-card">
+      <section
+        class="welcome-card"
+      >
 
         <div>
 
-          <span class="welcome-small">
+          <span
+            class="welcome-small"
+          >
             خوش آمدید 👋
           </span>
+
 
           <h2>
             محصولات شما
           </h2>
+
 
           <p>
             اطلاعات محصولات را ثبت کنید
@@ -1967,18 +1869,27 @@ function renderHome() {
 
         </div>
 
-        <div class="box-icon">
+
+        <div
+          class="box-icon"
+        >
           📦
         </div>
 
       </section>
 
 
-      <section class="stats">
+      <section
+        class="stats"
+      >
 
-        <div class="stat-card">
+        <div
+          class="stat-card"
+        >
 
-          <div class="stat-icon">
+          <div
+            class="stat-icon"
+          >
             📦
           </div>
 
@@ -1987,32 +1898,44 @@ function renderHome() {
           </span>
 
           <strong>
-            ${faNumbers(products.length)}
+            ${faNumbers(
+              products.length
+            )}
           </strong>
 
         </div>
 
 
-        <div class="stat-card">
+        <div
+          class="stat-card"
+        >
 
-          <div class="stat-icon warning">
+          <div
+            class="stat-icon warning"
+          >
             ⚠️
           </div>
 
           <span>
-            نزدیک انقضا
+            در حال انقضا
           </span>
 
           <strong>
-            ${faNumbers(warning)}
+            ${faNumbers(
+              warning
+            )}
           </strong>
 
         </div>
 
 
-        <div class="stat-card">
+        <div
+          class="stat-card"
+        >
 
-          <div class="stat-icon expired">
+          <div
+            class="stat-icon expired"
+          >
             ⛔
           </div>
 
@@ -2021,7 +1944,9 @@ function renderHome() {
           </span>
 
           <strong>
-            ${faNumbers(expired)}
+            ${faNumbers(
+              expired
+            )}
           </strong>
 
         </div>
@@ -2029,7 +1954,9 @@ function renderHome() {
       </section>
 
 
-      <section class="actions">
+      <section
+        class="actions"
+      >
 
         <button
           class="main-button"
@@ -2058,14 +1985,18 @@ function renderHome() {
       </section>
 
 
-      <div class="section-title">
+      <div
+        class="section-title"
+      >
 
         <h2>
           آخرین محصولات
         </h2>
 
         <span>
-          ${faNumbers(recent.length)} مورد
+          ${faNumbers(
+            recent.length
+          )} مورد
         </span>
 
       </div>
@@ -2074,7 +2005,9 @@ function renderHome() {
       ${
         recent.length
           ? `
-            <div class="products-list">
+            <div
+              class="products-list"
+            >
               ${recent
                 .map(
                   renderProductCard
@@ -2082,9 +2015,7 @@ function renderHome() {
                 .join("")}
             </div>
           `
-          : `
-            ${emptyState()}
-          `
+          : emptyState()
       }
 
     </main>
@@ -2098,18 +2029,24 @@ function renderHome() {
 
 function emptyState(
   title = "هنوز محصولی ثبت نشده",
-  text = "برای شروع، اولین محصول خود را ثبت کنید."
+  text =
+    "برای شروع، اولین محصول خود را ثبت کنید."
 ) {
+
   return `
-    <div class="empty-state">
+    <div
+      class="empty-state"
+    >
 
       <div>
         📦
       </div>
 
+
       <strong>
         ${escapeHTML(title)}
       </strong>
+
 
       <p>
         ${escapeHTML(text)}
@@ -2127,6 +2064,7 @@ function emptyState(
 function renderProductCard(
   product
 ) {
+
   const status =
     getDateStatus(
       product.expiryDate
@@ -2142,10 +2080,14 @@ function renderProductCard(
   return `
     <div
       class="product-card"
-      data-product-id="${escapeHTML(product.id)}"
+      data-product-id="${escapeHTML(
+        product.id
+      )}"
     >
 
-      <div class="product-image">
+      <div
+        class="product-image"
+      >
 
         ${
           product.image
@@ -2163,15 +2105,22 @@ function renderProductCard(
       </div>
 
 
-      <div class="product-card-content">
+      <div
+        class="product-card-content"
+      >
 
-        <div class="product-card-header">
+        <div
+          class="product-card-header"
+        >
 
           <div>
 
             <h3>
-              ${escapeHTML(product.name)}
+              ${escapeHTML(
+                product.name
+              )}
             </h3>
+
 
             <span>
               ${escapeHTML(
@@ -2195,19 +2144,22 @@ function renderProductCard(
         </div>
 
 
-        <div class="product-card-info">
+        <div
+          class="product-card-info"
+        >
 
           <span>
             تعداد:
-            ${faNumbers(product.quantity)}
+            ${faNumbers(
+              product.quantity
+            )}
           </span>
+
 
           <span>
             انقضا:
             ${formatDate(
-              product.expiryDate,
-              product.expiryCalendar ||
-                "jalali"
+              product.expiryDate
             )}
           </span>
 
@@ -2235,11 +2187,15 @@ function renderProductCard(
 ========================================================= */
 
 function renderProducts() {
+
   return `
     ${normalHeader(
       "محصولات",
-      `${faNumbers(products.length)} محصول ثبت شده`
+      `${faNumbers(
+        products.length
+      )} محصول ثبت شده`
     )}
+
 
     <main>
 
@@ -2257,9 +2213,7 @@ function renderProducts() {
                 .join("")}
             </div>
           `
-          : `
-            ${emptyState()}
-          `
+          : emptyState()
       }
 
     </main>
@@ -2272,17 +2226,23 @@ function renderProducts() {
 ========================================================= */
 
 function renderAlerts() {
+
   const alerts =
     products.filter(
-      product =>
-        getDateStatus(
-          product.expiryDate
-        ).type ===
-          "warning" ||
-        getDateStatus(
-          product.expiryDate
-        ).type ===
-          "expired"
+      product => {
+
+        const status =
+          getDateStatus(
+            product.expiryDate
+          );
+
+        return (
+          status.type ===
+            "warning" ||
+          status.type ===
+            "expired"
+        );
+      }
     );
 
 
@@ -2292,12 +2252,15 @@ function renderAlerts() {
       "محصولات نزدیک به انقضا"
     )}
 
+
     <main>
 
       ${
         alerts.length
           ? `
-            <div class="products-list">
+            <div
+              class="products-list"
+            >
               ${alerts
                 .map(
                   renderProductCard
@@ -2305,12 +2268,10 @@ function renderAlerts() {
                 .join("")}
             </div>
           `
-          : `
-            ${emptyState(
+          : emptyState(
               "هشداری وجود ندارد",
-              "در حال حاضر محصولی نزدیک به انقضا نیست."
-            )}
-          `
+              "در حال حاضر محصولی در محدوده چهار ماهه انقضا نیست."
+            )
       }
 
     </main>
@@ -2323,32 +2284,41 @@ function renderAlerts() {
 ========================================================= */
 
 function renderSettings() {
+
   return `
     ${normalHeader(
       "تنظیمات",
       "مدیریت برنامه"
     )}
 
+
     <main>
 
-      <section class="form-section">
+      <section
+        class="form-section"
+      >
 
         <h3>
           حساب کاربری
         </h3>
 
+
         <label>
           ایمیل
         </label>
 
+
         <input
           type="text"
           value="${escapeHTML(
-            currentSession?.user?.email ||
+            currentSession
+              ?.user
+              ?.email ||
             ""
           )}"
           disabled
         >
+
 
         <button
           class="delete-button"
@@ -2367,8 +2337,9 @@ function renderSettings() {
       >
 
         <h3>
-          تقویم
+          تاریخ
         </h3>
+
 
         <p
           style="
@@ -2378,9 +2349,9 @@ function renderSettings() {
             line-height:2;
           "
         >
-          هنگام ثبت تاریخ می‌توانید
-          بین هجری شمسی و هجری قمری
-          انتخاب کنید.
+          تاریخ‌ها در برنامه به صورت
+          میلادی نمایش داده می‌شوند؛
+          برای مثال 2026/09/25.
         </p>
 
       </section>
@@ -2397,8 +2368,10 @@ function renderSettings() {
 function renderForm(
   product = null
 ) {
+
   editingProductId =
-    product?.id || null;
+    product?.id ||
+    null;
 
 
   productionDate =
@@ -2417,18 +2390,9 @@ function renderForm(
       : null;
 
 
-  productionCalendar =
-    product?.productionCalendar ||
-    "jalali";
-
-
-  expiryCalendar =
-    product?.expiryCalendar ||
-    "jalali";
-
-
   selectedImage =
-    product?.image || "";
+    product?.image ||
+    "";
 
 
   return `
@@ -2438,6 +2402,7 @@ function renderForm(
         : "ثبت محصول"
     )}
 
+
     <main>
 
       <form
@@ -2445,7 +2410,9 @@ function renderForm(
         id="productForm"
       >
 
-        <section class="form-section">
+        <section
+          class="form-section"
+        >
 
           <h3>
             اطلاعات محصول
@@ -2456,12 +2423,14 @@ function renderForm(
             نام محصول
           </label>
 
+
           <input
             type="text"
             id="productName"
             placeholder="مثلاً شیر"
             value="${escapeHTML(
-              product?.name || ""
+              product?.name ||
+              ""
             )}"
           >
 
@@ -2470,12 +2439,14 @@ function renderForm(
             نوع محصول
           </label>
 
+
           <input
             type="text"
             id="productType"
             placeholder="مثلاً مواد غذایی"
             value="${escapeHTML(
-              product?.type || ""
+              product?.type ||
+              ""
             )}"
           >
 
@@ -2483,6 +2454,7 @@ function renderForm(
           <label>
             تعداد
           </label>
+
 
           <input
             type="number"
@@ -2498,7 +2470,9 @@ function renderForm(
         </section>
 
 
-        <section class="form-section">
+        <section
+          class="form-section"
+        >
 
           <h3>
             تاریخ‌ها
@@ -2509,14 +2483,14 @@ function renderForm(
             تاریخ تولید
           </label>
 
+
           <button
             class="date-picker-button"
             id="productionDateButton"
             type="button"
           >
             ${dateButtonContent(
-              productionDate,
-              productionCalendar
+              productionDate
             )}
           </button>
 
@@ -2525,14 +2499,14 @@ function renderForm(
             تاریخ انقضا
           </label>
 
+
           <button
             class="date-picker-button"
             id="expiryDateButton"
             type="button"
           >
             ${dateButtonContent(
-              expiryDate,
-              expiryCalendar
+              expiryDate
             )}
           </button>
 
@@ -2546,7 +2520,9 @@ function renderForm(
         </section>
 
 
-        <section class="form-section">
+        <section
+          class="form-section"
+        >
 
           <h3>
             عکس محصول
@@ -2558,14 +2534,16 @@ function renderForm(
           >
 
             <span>
-              📷
+              🖼️
             </span>
+
 
             <div>
 
               <strong>
-                انتخاب عکس
+                انتخاب عکس از گالری
               </strong>
+
 
               <small>
                 عکس فقط روی گوشی ذخیره می‌شود
@@ -2573,11 +2551,11 @@ function renderForm(
 
             </div>
 
+
             <input
               type="file"
               id="productImage"
               accept="image/*"
-              capture="environment"
             >
 
           </label>
@@ -2645,23 +2623,28 @@ function renderForm(
 ========================================================= */
 
 function dateButtonContent(
-  date,
-  mode
+  date
 ) {
+
   if (!date) {
+
     return `
       <span>
         📅
       </span>
 
-      <div class="date-value">
+
+      <div
+        class="date-value"
+      >
 
         <strong>
           انتخاب تاریخ
         </strong>
 
+
         <small>
-          هجری شمسی یا هجری قمری
+          تاریخ میلادی
         </small>
 
       </div>
@@ -2674,17 +2657,20 @@ function dateButtonContent(
       📅
     </span>
 
-    <div class="date-value">
+
+    <div
+      class="date-value"
+    >
 
       <strong>
         ${formatDate(
-          date,
-          mode
+          date
         )}
       </strong>
 
+
       <small>
-        ${calendarName(mode)}
+        میلادی
       </small>
 
     </div>
@@ -2697,27 +2683,31 @@ function dateButtonContent(
 ========================================================= */
 
 function renderDateDifference() {
+
   if (
     !productionDate ||
     !expiryDate
   ) {
+
     return `
-      <div class="date-difference">
+      <div
+        class="date-difference"
+      >
         ابتدا تاریخ تولید و انقضا را انتخاب کنید.
       </div>
     `;
   }
 
 
-  const status =
-    getDateStatus(
+  const text =
+    dateDifferenceText(
+      productionDate,
       expiryDate
     );
 
 
-  const text =
-    dateDifferenceText(
-      productionDate,
+  const status =
+    getDateStatus(
       expiryDate
     );
 
@@ -2736,6 +2726,26 @@ function renderDateDifference() {
 }
 
 
+function dateDifferenceText(
+  start,
+  end
+) {
+
+  const result =
+    difference(
+      start,
+      end
+    );
+
+
+  return (
+    `${faNumbers(result.years)} سال، ` +
+    `${faNumbers(result.months)} ماه و ` +
+    `${faNumbers(result.days)} روز`
+  );
+}
+
+
 /* =========================================================
    CALENDAR
 ========================================================= */
@@ -2743,19 +2753,9 @@ function renderDateDifference() {
 function openCalendar(
   type
 ) {
+
   calendarType =
     type;
-
-
-  if (
-    type === "production"
-  ) {
-    calendarMode =
-      productionCalendar;
-  } else {
-    calendarMode =
-      expiryCalendar;
-  }
 
 
   const selected =
@@ -2764,47 +2764,24 @@ function openCalendar(
       : expiryDate;
 
 
-  if (
-    selected
-  ) {
-    const display =
-      getDisplayDate(
-        selected,
-        calendarMode
-      );
+  if (selected) {
 
     calendarYear =
-      display.year;
+      selected.year;
 
     calendarMonth =
-      display.month;
+      selected.month;
 
   } else {
 
-    if (
-      calendarMode ===
-      "hijri"
-    ) {
-      const today =
-        getTodayHijri();
+    const today =
+      getToday();
 
-      calendarYear =
-        today.hy;
+    calendarYear =
+      today.year;
 
-      calendarMonth =
-        today.hm;
-
-    } else {
-
-      const today =
-        getToday();
-
-      calendarYear =
-        today.jy;
-
-      calendarMonth =
-        today.jm;
-    }
+    calendarMonth =
+      today.month;
   }
 
 
@@ -2812,11 +2789,17 @@ function openCalendar(
 }
 
 
+/* =========================================================
+   RENDER CALENDAR
+========================================================= */
+
 function renderCalendar() {
+
   const old =
     document.querySelector(
       ".calendar-overlay"
     );
+
 
   if (old) {
     old.remove();
@@ -2829,23 +2812,8 @@ function renderCalendar() {
       : expiryDate;
 
 
-  const selectedDisplay =
-    selected
-      ? getDisplayDate(
-          selected,
-          calendarMode
-        )
-      : null;
-
-
-  const monthNames =
-    calendarMode === "hijri"
-      ? HIJRI_MONTHS
-      : JALALI_MONTHS;
-
-
   const title =
-    `${monthNames[calendarMonth - 1]} ${faNumbers(calendarYear)}`;
+    `${MONTHS[calendarMonth - 1]} ${calendarYear}`;
 
 
   const overlay =
@@ -2853,66 +2821,31 @@ function renderCalendar() {
       "div"
     );
 
+
   overlay.className =
     "calendar-overlay";
 
 
   overlay.innerHTML = `
+
     <div
       class="calendar"
       role="dialog"
     >
 
       <div
-        class="calendar-type-switch"
+        class="calendar-mode-label"
       >
-
-        <button
-          type="button"
-          class="
-            calendar-type-button
-            ${
-              calendarMode ===
-              "jalali"
-                ? "active"
-                : ""
-            }
-          "
-          data-calendar-mode="jalali"
-        >
-          هجری شمسی
-        </button>
-
-        <button
-          type="button"
-          class="
-            calendar-type-button
-            ${
-              calendarMode ===
-              "hijri"
-                ? "active"
-                : ""
-            }
-          "
-          data-calendar-mode="hijri"
-        >
-          هجری قمری
-        </button>
-
-      </div>
-
-
-      <div class="calendar-mode-label">
         انتخاب تاریخ
         <strong>
-          ${calendarName(
-            calendarMode
-          )}
+          میلادی
         </strong>
       </div>
 
 
-      <div class="calendar-header">
+      <div
+        class="calendar-header"
+      >
 
         <button
           type="button"
@@ -2922,19 +2855,17 @@ function renderCalendar() {
         </button>
 
 
-        <div class="calendar-title">
+        <div
+          class="calendar-title"
+        >
 
           <strong>
-            ${title}
+            ${escapeHTML(title)}
           </strong>
 
+
           <small>
-            ${
-              calendarMode ===
-              "hijri"
-                ? "تقویم قمری"
-                : "تقویم شمسی"
-            }
+            Gregorian
           </small>
 
         </div>
@@ -2950,7 +2881,9 @@ function renderCalendar() {
       </div>
 
 
-      <div class="weekdays">
+      <div
+        class="weekdays"
+      >
 
         ${WEEK_DAYS
           .map(
@@ -2987,29 +2920,8 @@ function renderCalendar() {
 
 
   drawCalendarDays(
-    selectedDisplay
+    selected
   );
-
-
-  overlay
-    .querySelectorAll(
-      "[data-calendar-mode]"
-    )
-    .forEach(
-      button => {
-        button.addEventListener(
-          "click",
-          () => {
-
-            changeCalendarMode(
-              button.dataset
-                .calendarMode
-            );
-
-          }
-        );
-      }
-    );
 
 
   overlay
@@ -3062,98 +2974,11 @@ function renderCalendar() {
         event.target ===
         overlay
       ) {
+
         closeCalendar();
       }
-
     }
   );
-}
-
-
-/* =========================================================
-   CHANGE CALENDAR MODE
-========================================================= */
-
-function changeCalendarMode(
-  mode
-) {
-  if (
-    mode !== "jalali" &&
-    mode !== "hijri"
-  ) {
-    return;
-  }
-
-
-  /*
-    Keep currently selected date
-    and convert it to the new calendar.
-  */
-
-  const selected =
-    calendarType === "production"
-      ? productionDate
-      : expiryDate;
-
-
-  calendarMode =
-    mode;
-
-
-  if (selected) {
-
-    const display =
-      getDisplayDate(
-        selected,
-        mode
-      );
-
-    calendarYear =
-      display.year;
-
-    calendarMonth =
-      display.month;
-
-  } else {
-
-    if (
-      mode === "hijri"
-    ) {
-      const today =
-        getTodayHijri();
-
-      calendarYear =
-        today.hy;
-
-      calendarMonth =
-        today.hm;
-
-    } else {
-
-      const today =
-        getToday();
-
-      calendarYear =
-        today.jy;
-
-      calendarMonth =
-        today.jm;
-    }
-  }
-
-
-  if (
-    calendarType === "production"
-  ) {
-    productionCalendar =
-      mode;
-  } else {
-    expiryCalendar =
-      mode;
-  }
-
-
-  renderCalendar();
 }
 
 
@@ -3164,6 +2989,7 @@ function changeCalendarMode(
 function moveCalendarMonth(
   amount
 ) {
+
   calendarMonth +=
     amount;
 
@@ -3171,7 +2997,10 @@ function moveCalendarMonth(
   if (
     calendarMonth < 1
   ) {
-    calendarMonth = 12;
+
+    calendarMonth =
+      12;
+
     calendarYear--;
   }
 
@@ -3179,15 +3008,13 @@ function moveCalendarMonth(
   if (
     calendarMonth > 12
   ) {
-    calendarMonth = 1;
+
+    calendarMonth =
+      1;
+
     calendarYear++;
   }
 
-
-  /*
-    Gregorian/Jalali algorithms support
-    the normal supported year range.
-  */
 
   renderCalendar();
 }
@@ -3198,69 +3025,34 @@ function moveCalendarMonth(
 ========================================================= */
 
 function drawCalendarDays(
-  selectedDisplay
+  selected
 ) {
+
   const container =
     document.querySelector(
       "#calendarDays"
     );
+
 
   if (!container) {
     return;
   }
 
 
-  container.innerHTML = "";
+  container.innerHTML =
+    "";
 
 
-  let firstDate;
-
-
-  if (
-    calendarMode ===
-    "jalali"
-  ) {
-
-    firstDate =
-      jalaliDate(
-        calendarYear,
-        calendarMonth,
-        1
-      );
-
-  } else {
-
-    const gregorian =
-      hijriToGregorian(
-        calendarYear,
-        calendarMonth,
-        1
-      );
-
-    firstDate =
-      new Date(
-        gregorian.gy,
-        gregorian.gm - 1,
-        gregorian.gd
-      );
-  }
+  const firstDate =
+    new Date(
+      calendarYear,
+      calendarMonth - 1,
+      1
+    );
 
 
   /*
-    JavaScript:
-    Sunday = 0
-    Saturday = 6
-
-    We want:
-    Saturday first
-    Friday last
-
-    Convert:
-    Sunday -> 1
-    Monday -> 2
-    ...
-    Friday -> 6
-    Saturday -> 0
+    Saturday first.
   */
 
   const startDay =
@@ -3281,8 +3073,10 @@ function drawCalendarDays(
         "div"
       );
 
+
     empty.className =
       "calendar-empty";
+
 
     container.appendChild(
       empty
@@ -3291,45 +3085,14 @@ function drawCalendarDays(
 
 
   const days =
-    calendarMode === "jalali"
-      ? jalaliMonthDays(
-          calendarYear,
-          calendarMonth
-        )
-      : hijriMonthDays(
-          calendarYear,
-          calendarMonth
-        );
+    gregorianMonthDays(
+      calendarYear,
+      calendarMonth
+    );
 
 
-  let todayDisplay = null;
-
-
-  if (
-    calendarMode ===
-    "jalali"
-  ) {
-
-    const today =
-      getToday();
-
-    todayDisplay = {
-      year: today.jy,
-      month: today.jm,
-      day: today.jd
-    };
-
-  } else {
-
-    const today =
-      getTodayHijri();
-
-    todayDisplay = {
-      year: today.hy,
-      month: today.hm,
-      day: today.hd
-    };
-  }
+  const today =
+    getToday();
 
 
   for (
@@ -3343,46 +3106,48 @@ function drawCalendarDays(
         "button"
       );
 
+
     button.type =
       "button";
+
 
     button.textContent =
       faNumbers(day);
 
 
     const isSelected =
-      selectedDisplay &&
+      selected &&
       Number(
-        selectedDisplay.year
+        selected.year
       ) ===
         Number(calendarYear) &&
       Number(
-        selectedDisplay.month
+        selected.month
       ) ===
         Number(calendarMonth) &&
       Number(
-        selectedDisplay.day
+        selected.day
       ) ===
         Number(day);
 
 
     const isToday =
-      todayDisplay &&
       Number(
-        todayDisplay.year
+        today.year
       ) ===
         Number(calendarYear) &&
       Number(
-        todayDisplay.month
+        today.month
       ) ===
         Number(calendarMonth) &&
       Number(
-        todayDisplay.day
+        today.day
       ) ===
         Number(day);
 
 
     if (isSelected) {
+
       button.classList.add(
         "selected"
       );
@@ -3390,6 +3155,7 @@ function drawCalendarDays(
 
 
     if (isToday) {
+
       button.classList.add(
         "today"
       );
@@ -3418,7 +3184,7 @@ function drawCalendarDays(
 
 
 /* =========================================================
-   SELECT CALENDAR DATE
+   SELECT DATE
 ========================================================= */
 
 function selectCalendarDate(
@@ -3426,49 +3192,23 @@ function selectCalendarDate(
   month,
   day
 ) {
-  let canonicalJalali;
-
 
   if (
-    calendarMode ===
-    "jalali"
-  ) {
-
-    if (
-      !isValidJalaliDate(
-        year,
-        month,
-        day
-      )
-    ) {
-      return;
-    }
-
-    canonicalJalali = {
+    !isValidGregorianDate(
       year,
       month,
       day
-    };
-
-  } else {
-
-    if (
-      !isValidHijriDate(
-        year,
-        month,
-        day
-      )
-    ) {
-      return;
-    }
-
-    canonicalJalali =
-      hijriToJalaliObject({
-        year,
-        month,
-        day
-      });
+    )
+  ) {
+    return;
   }
+
+
+  const selected = {
+    year,
+    month,
+    day
+  };
 
 
   if (
@@ -3477,23 +3217,16 @@ function selectCalendarDate(
   ) {
 
     productionDate =
-      canonicalJalali;
-
-    productionCalendar =
-      calendarMode;
+      selected;
 
   } else {
 
     expiryDate =
-      canonicalJalali;
-
-    expiryCalendar =
-      calendarMode;
+      selected;
   }
 
 
   closeCalendar();
-
 
   updateDateButtons();
 }
@@ -3504,10 +3237,12 @@ function selectCalendarDate(
 ========================================================= */
 
 function closeCalendar() {
+
   const overlay =
     document.querySelector(
       ".calendar-overlay"
     );
+
 
   if (overlay) {
     overlay.remove();
@@ -3516,21 +3251,22 @@ function closeCalendar() {
 
 
 /* =========================================================
-   UPDATE FORM DATES
+   UPDATE DATE BUTTONS
 ========================================================= */
 
 function updateDateButtons() {
+
   const productionButton =
     document.querySelector(
       "#productionDateButton"
     );
 
+
   if (productionButton) {
 
     productionButton.innerHTML =
       dateButtonContent(
-        productionDate,
-        productionCalendar
+        productionDate
       );
   }
 
@@ -3540,12 +3276,12 @@ function updateDateButtons() {
       "#expiryDateButton"
     );
 
+
   if (expiryButton) {
 
     expiryButton.innerHTML =
       dateButtonContent(
-        expiryDate,
-        expiryCalendar
+        expiryDate
       );
   }
 
@@ -3554,6 +3290,7 @@ function updateDateButtons() {
     document.querySelector(
       "#dateDifference"
     );
+
 
   if (differenceBox) {
 
@@ -3564,14 +3301,16 @@ function updateDateButtons() {
 
 
 /* =========================================================
-   IMAGE
+   IMAGE PICKER
 ========================================================= */
 
 function setupImagePicker() {
+
   const input =
     document.querySelector(
       "#productImage"
     );
+
 
   if (!input) {
     return;
@@ -3585,16 +3324,11 @@ function setupImagePicker() {
       const file =
         event.target.files?.[0];
 
+
       if (!file) {
         return;
       }
 
-
-      /*
-        Compress image before localStorage.
-        This prevents localStorage from becoming
-        unnecessarily huge.
-      */
 
       compressImage(
         file,
@@ -3618,19 +3352,22 @@ function setupImagePicker() {
             preview.style.display =
               "block";
           }
-
         }
       );
-
     }
   );
 }
 
 
+/* =========================================================
+   COMPRESS IMAGE
+========================================================= */
+
 function compressImage(
   file,
   callback
 ) {
+
   const reader =
     new FileReader();
 
@@ -3668,10 +3405,12 @@ function compressImage(
             maxHeight / height
           );
 
+
         width =
           Math.round(
             width * ratio
           );
+
 
         height =
           Math.round(
@@ -3735,6 +3474,7 @@ function compressImage(
 function renderDetails(
   productId
 ) {
+
   const product =
     products.find(
       item =>
@@ -3744,7 +3484,9 @@ function renderDetails(
 
 
   if (!product) {
+
     renderProducts();
+
     return;
   }
 
@@ -3755,16 +3497,6 @@ function renderDetails(
     );
 
 
-  const productionMode =
-    product.productionCalendar ||
-    "jalali";
-
-
-  const expiryMode =
-    product.expiryCalendar ||
-    "jalali";
-
-
   document.querySelector(
     "#appContent"
   ).innerHTML = `
@@ -3773,11 +3505,16 @@ function renderDetails(
       "جزئیات محصول"
     )}
 
+
     <main>
 
-      <section class="details-card">
+      <section
+        class="details-card"
+      >
 
-        <div class="details-image">
+        <div
+          class="details-image"
+        >
 
           ${
             product.image
@@ -3802,7 +3539,9 @@ function renderDetails(
         </h2>
 
 
-        <span class="details-type">
+        <span
+          class="details-type"
+        >
           ${escapeHTML(
             product.type ||
             "بدون نوع"
@@ -3824,13 +3563,16 @@ function renderDetails(
         </div>
 
 
-        <div class="details-grid">
+        <div
+          class="details-grid"
+        >
 
           <div>
 
             <span>
               تعداد
             </span>
+
 
             <strong>
               ${faNumbers(
@@ -3847,10 +3589,10 @@ function renderDetails(
               تاریخ تولید
             </span>
 
+
             <strong>
               ${formatDate(
-                product.productionDate,
-                productionMode
+                product.productionDate
               )}
             </strong>
 
@@ -3863,10 +3605,10 @@ function renderDetails(
               تاریخ انقضا
             </span>
 
+
             <strong>
               ${formatDate(
-                product.expiryDate,
-                expiryMode
+                product.expiryDate
               )}
             </strong>
 
@@ -3882,23 +3624,13 @@ function renderDetails(
             font-size:10px;
           "
         >
-
-          تولید:
-          ${calendarName(
-            productionMode
-          )}
-
-          <br>
-
-          انقضا:
-          ${calendarName(
-            expiryMode
-          )}
-
+          تاریخ‌ها به صورت میلادی ذخیره می‌شوند.
         </div>
 
 
-        <div class="details-actions">
+        <div
+          class="details-actions"
+        >
 
           <button
             class="save-button"
@@ -3930,7 +3662,12 @@ function renderDetails(
   )?.addEventListener(
     "click",
     () => {
+
       renderProducts();
+
+      updateNav(
+        "products"
+      );
     }
   );
 
@@ -3940,6 +3677,7 @@ function renderDetails(
   )?.addEventListener(
     "click",
     () => {
+
       renderFormPage(
         product
       );
@@ -3956,7 +3694,6 @@ function renderDetails(
       await deleteProduct(
         product.id
       );
-
     }
   );
 }
@@ -3969,6 +3706,7 @@ function renderDetails(
 function renderFormPage(
   product = null
 ) {
+
   document.querySelector(
     "#appContent"
   ).innerHTML =
@@ -3984,14 +3722,19 @@ function renderFormPage(
     () => {
 
       if (product) {
+
         renderDetails(
           product.id
         );
-      } else {
-        renderHome();
-        updateNav("home");
-      }
 
+      } else {
+
+        renderHome();
+
+        updateNav(
+          "home"
+        );
+      }
     }
   );
 
@@ -4005,7 +3748,6 @@ function renderFormPage(
       event.preventDefault();
 
       await saveProduct();
-
     }
   );
 
@@ -4015,6 +3757,7 @@ function renderFormPage(
   )?.addEventListener(
     "click",
     () => {
+
       openCalendar(
         "production"
       );
@@ -4027,6 +3770,7 @@ function renderFormPage(
   )?.addEventListener(
     "click",
     () => {
+
       openCalendar(
         "expiry"
       );
@@ -4041,11 +3785,11 @@ function renderFormPage(
     async () => {
 
       if (product) {
+
         await deleteProduct(
           product.id
         );
       }
-
     }
   );
 
@@ -4061,6 +3805,7 @@ function renderFormPage(
 function updateNav(
   page
 ) {
+
   document
     .querySelectorAll(
       ".nav-item"
@@ -4073,7 +3818,6 @@ function updateNav(
           item.dataset.page ===
             page
         );
-
       }
     );
 }
@@ -4082,7 +3826,10 @@ function updateNav(
 function renderPage(
   page
 ) {
-  updateNav(page);
+
+  updateNav(
+    page
+  );
 
 
   if (
@@ -4161,6 +3908,7 @@ function renderPage(
 ========================================================= */
 
 function bindHome() {
+
   document.querySelector(
     "#homeAddButton"
   )?.addEventListener(
@@ -4169,8 +3917,9 @@ function bindHome() {
 
       renderFormPage();
 
-      updateNav("add");
-
+      updateNav(
+        "add"
+      );
     }
   );
 
@@ -4184,6 +3933,7 @@ function bindHome() {
 ========================================================= */
 
 function bindProductCards() {
+
   document
     .querySelectorAll(
       ".product-card"
@@ -4199,13 +3949,12 @@ function bindProductCards() {
               card.dataset
                 .productId;
 
+
             renderDetails(
               id
             );
-
           }
         );
-
       }
     );
 }
@@ -4216,6 +3965,7 @@ function bindProductCards() {
 ========================================================= */
 
 function bindSettings() {
+
   document.querySelector(
     "#logoutButton"
   )?.addEventListener(
@@ -4226,6 +3976,7 @@ function bindSettings() {
         confirm(
           "آیا می‌خواهید از حساب خارج شوید؟"
         );
+
 
       if (!confirmed) {
         return;
@@ -4242,9 +3993,7 @@ function bindSettings() {
           "Logout error:",
           error
         );
-
       }
-
     }
   );
 }
@@ -4255,6 +4004,7 @@ function bindSettings() {
 ========================================================= */
 
 function renderApp() {
+
   if (
     !document.querySelector(
       "#app"
@@ -4279,30 +4029,45 @@ function renderApp() {
 function renderAuthPage(
   message = ""
 ) {
+
   document.body.innerHTML = `
-    <div class="auth-page">
 
-      <div class="auth-card">
+    <div
+      class="auth-page"
+    >
 
-        <div class="auth-icon">
+      <div
+        class="auth-card"
+      >
+
+        <div
+          class="auth-icon"
+        >
           📦
         </div>
+
 
         <h1>
           مدیریت محصولات
         </h1>
 
-        <p class="auth-description">
+
+        <p
+          class="auth-description"
+        >
           برای مدیریت محصولات و دریافت
           هشدار انقضا وارد حساب خود شوید.
         </p>
 
 
-        <form id="loginForm">
+        <form
+          id="loginForm"
+        >
 
           <label>
             ایمیل
           </label>
+
 
           <input
             type="email"
@@ -4318,6 +4083,7 @@ function renderAuthPage(
           >
             رمز عبور
           </label>
+
 
           <input
             type="password"
@@ -4340,13 +4106,17 @@ function renderAuthPage(
             class="auth-message"
             id="authMessage"
           >
-            ${escapeHTML(message)}
+            ${escapeHTML(
+              message
+            )}
           </div>
 
         </form>
 
 
-        <div class="auth-info">
+        <div
+          class="auth-info"
+        >
           اطلاعات محصولات شما در حساب کاربری
           ذخیره می‌شود.
           <br>
@@ -4375,6 +4145,7 @@ function renderAuthPage(
 async function handleLogin(
   event
 ) {
+
   event.preventDefault();
 
 
@@ -4402,8 +4173,13 @@ async function handleLogin(
     );
 
 
-  if (!email || !password) {
+  if (
+    !email ||
+    !password
+  ) {
+
     if (message) {
+
       message.textContent =
         "ایمیل و رمز عبور را وارد کنید.";
     }
@@ -4413,6 +4189,7 @@ async function handleLogin(
 
 
   if (button) {
+
     button.disabled =
       true;
 
@@ -4433,9 +4210,9 @@ async function handleLogin(
     if (
       result?.error
     ) {
+
       throw result.error;
     }
-
 
   } catch (error) {
 
@@ -4446,6 +4223,7 @@ async function handleLogin(
 
 
     if (message) {
+
       message.textContent =
         error?.message ||
         "ورود انجام نشد.";
@@ -4453,6 +4231,7 @@ async function handleLogin(
 
 
     if (button) {
+
       button.disabled =
         false;
 
@@ -4468,6 +4247,7 @@ async function handleLogin(
 ========================================================= */
 
 async function checkSession() {
+
   try {
 
     const session =
@@ -4491,7 +4271,6 @@ async function checkSession() {
     } else {
 
       renderAuthPage();
-
     }
 
   } catch (error) {
@@ -4500,6 +4279,7 @@ async function checkSession() {
       "Session error:",
       error
     );
+
 
     renderAuthPage(
       "خطایی هنگام بررسی حساب رخ داد."
@@ -4513,6 +4293,7 @@ async function checkSession() {
 ========================================================= */
 
 function setupAuthListener() {
+
   if (
     !supabase?.auth
   ) {
@@ -4541,7 +4322,6 @@ function setupAuthListener() {
         await setupNotifications();
 
         await loadProductsFromCloud();
-
       }
 
 
@@ -4556,9 +4336,7 @@ function setupAuthListener() {
           null;
 
         renderAuthPage();
-
       }
-
     }
   );
 }
@@ -4569,6 +4347,7 @@ function setupAuthListener() {
 ========================================================= */
 
 function setupNavigation() {
+
   document.addEventListener(
     "click",
     event => {
@@ -4577,6 +4356,7 @@ function setupNavigation() {
         event.target.closest(
           ".nav-item"
         );
+
 
       if (!nav) {
         return;
@@ -4595,7 +4375,6 @@ function setupNavigation() {
       renderPage(
         page
       );
-
     }
   );
 }
@@ -4606,6 +4385,7 @@ function setupNavigation() {
 ========================================================= */
 
 async function startApp() {
+
   setupNavigation();
 
   setupAuthListener();
