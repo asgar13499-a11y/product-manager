@@ -2,6 +2,100 @@ import { supabase } from "./supabase.js";
 
 let mode = "login";
 
+/* =========================
+   SESSION
+========================= */
+
+export async function getSession() {
+  const {
+    data,
+    error
+  } = await supabase.auth.getSession();
+
+  if (error) {
+    console.error("Get session error:", error);
+    return null;
+  }
+
+  return data?.session || null;
+}
+
+
+/* =========================
+   SIGN IN
+========================= */
+
+export async function signIn(
+  email,
+  password
+) {
+  const {
+    data,
+    error
+  } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) {
+    const message =
+      error.message?.toLowerCase() || "";
+
+    if (
+      message.includes(
+        "invalid login credentials"
+      )
+    ) {
+      throw new Error(
+        "ایمیل یا رمز عبور اشتباه است."
+      );
+    }
+
+    throw new Error(
+      error.message ||
+      "ورود انجام نشد."
+    );
+  }
+
+  if (!data?.session) {
+    throw new Error(
+      "ورود انجام نشد."
+    );
+  }
+
+  return data.session;
+}
+
+
+/* =========================
+   SIGN OUT
+========================= */
+
+export async function signOut() {
+  const {
+    error
+  } = await supabase.auth.signOut();
+
+  if (error) {
+    console.error(
+      "Sign out error:",
+      error
+    );
+
+    throw new Error(
+      error.message ||
+      "خروج از حساب انجام نشد."
+    );
+  }
+
+  return true;
+}
+
+
+/* =========================
+   AUTH UI
+========================= */
+
 export function renderAuth() {
   const app = document.getElementById("app");
 
@@ -61,7 +155,10 @@ export function renderAuth() {
             </button>
           </div>
 
-          <div id="confirmPasswordBox" style="display:none;">
+          <div
+            id="confirmPasswordBox"
+            style="display:none;"
+          >
 
             <label class="auth-label">
               تکرار رمز عبور
@@ -77,7 +174,10 @@ export function renderAuth() {
 
           </div>
 
-          <div id="authMessage" class="auth-message"></div>
+          <div
+            id="authMessage"
+            class="auth-message"
+          ></div>
 
           <button
             type="submit"
@@ -112,8 +212,14 @@ export function renderAuth() {
   bindAuthEvents();
 }
 
+
+/* =========================
+   EVENTS
+========================= */
+
 function bindAuthEvents() {
-  const form = document.getElementById("authForm");
+  const form =
+    document.getElementById("authForm");
 
   const emailInput =
     document.getElementById("authEmail");
@@ -122,130 +228,161 @@ function bindAuthEvents() {
     document.getElementById("authPassword");
 
   const confirmInput =
-    document.getElementById("authConfirmPassword");
+    document.getElementById(
+      "authConfirmPassword"
+    );
 
   const submitButton =
     document.getElementById("authSubmit");
 
   const switchButton =
-    document.getElementById("authSwitchButton");
+    document.getElementById(
+      "authSwitchButton"
+    );
 
   const togglePassword =
-    document.getElementById("togglePassword");
+    document.getElementById(
+      "togglePassword"
+    );
 
-  switchButton.addEventListener("click", () => {
-    mode = mode === "login"
-      ? "register"
-      : "login";
+  switchButton.addEventListener(
+    "click",
+    () => {
+      mode =
+        mode === "login"
+          ? "register"
+          : "login";
 
-    updateAuthMode();
+      updateAuthMode();
 
-    emailInput.focus();
-  });
-
-  togglePassword.addEventListener("click", () => {
-    if (passwordInput.type === "password") {
-      passwordInput.type = "text";
-      togglePassword.textContent = "🙈";
-    } else {
-      passwordInput.type = "password";
-      togglePassword.textContent = "👁";
+      emailInput.focus();
     }
-  });
+  );
 
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
+  togglePassword.addEventListener(
+    "click",
+    () => {
+      if (
+        passwordInput.type ===
+        "password"
+      ) {
+        passwordInput.type = "text";
+        togglePassword.textContent =
+          "🙈";
+      } else {
+        passwordInput.type =
+          "password";
 
-    clearAuthMessage();
-
-    const email =
-      emailInput.value.trim().toLowerCase();
-
-    const password =
-      passwordInput.value;
-
-    if (!email) {
-      showAuthMessage(
-        "ایمیل را وارد کنید.",
-        true
-      );
-      return;
+        togglePassword.textContent =
+          "👁";
+      }
     }
+  );
 
-    if (!password) {
-      showAuthMessage(
-        "رمز عبور را وارد کنید.",
-        true
-      );
-      return;
-    }
+  form.addEventListener(
+    "submit",
+    async (event) => {
+      event.preventDefault();
 
-    if (password.length < 6) {
-      showAuthMessage(
-        "رمز عبور باید حداقل ۶ کاراکتر باشد.",
-        true
-      );
-      return;
-    }
+      clearAuthMessage();
 
-    if (mode === "register") {
-      const confirmPassword =
-        confirmInput.value;
+      const email =
+        emailInput.value
+          .trim()
+          .toLowerCase();
 
-      if (password !== confirmPassword) {
+      const password =
+        passwordInput.value;
+
+      if (!email) {
         showAuthMessage(
-          "رمز عبور و تکرار آن یکسان نیست.",
+          "ایمیل را وارد کنید.",
           true
         );
         return;
       }
-    }
 
-    submitButton.disabled = true;
-
-    submitButton.textContent =
-      mode === "login"
-        ? "در حال ورود..."
-        : "در حال ساخت حساب...";
-
-    try {
-
-      if (mode === "register") {
-        await registerUser(
-          email,
-          password
+      if (!password) {
+        showAuthMessage(
+          "رمز عبور را وارد کنید.",
+          true
         );
-      } else {
-        await loginUser(
-          email,
-          password
-        );
+        return;
       }
 
-    } catch (error) {
+      if (password.length < 6) {
+        showAuthMessage(
+          "رمز عبور باید حداقل ۶ کاراکتر باشد.",
+          true
+        );
+        return;
+      }
 
-      console.error(error);
+      if (mode === "register") {
+        const confirmPassword =
+          confirmInput.value;
 
-      showAuthMessage(
-        error.message ||
-        "خطایی رخ داد.",
-        true
-      );
+        if (
+          password !==
+          confirmPassword
+        ) {
+          showAuthMessage(
+            "رمز عبور و تکرار آن یکسان نیست.",
+            true
+          );
+          return;
+        }
+      }
 
-      submitButton.disabled = false;
+      submitButton.disabled = true;
 
       submitButton.textContent =
         mode === "login"
-          ? "ورود"
-          : "ساخت حساب";
+          ? "در حال ورود..."
+          : "در حال ساخت حساب...";
+
+      try {
+        if (mode === "register") {
+          await registerUser(
+            email,
+            password
+          );
+        } else {
+          await loginUser(
+            email,
+            password
+          );
+        }
+      } catch (error) {
+        console.error(error);
+
+        showAuthMessage(
+          error.message ||
+          "خطایی رخ داد.",
+          true
+        );
+
+        submitButton.disabled = false;
+
+        submitButton.textContent =
+          mode === "login"
+            ? "ورود"
+            : "ساخت حساب";
+      }
     }
-  });
+  );
 }
 
-function updateAuthMode() {
 
+/* =========================
+   UPDATE AUTH MODE
+========================= */
+
+function updateAuthMode() {
   const subtitle =
-    document.getElementById("authSubtitle");
+    document.getElementById(
+      "authSubtitle"
+    );
 
   const confirmBox =
     document.getElementById(
@@ -253,7 +390,9 @@ function updateAuthMode() {
     );
 
   const submitButton =
-    document.getElementById("authSubmit");
+    document.getElementById(
+      "authSubmit"
+    );
 
   const switchText =
     document.getElementById(
@@ -266,7 +405,6 @@ function updateAuthMode() {
     );
 
   if (mode === "login") {
-
     subtitle.textContent =
       "وارد حساب خود شوید";
 
@@ -281,9 +419,7 @@ function updateAuthMode() {
 
     switchButton.textContent =
       "ساخت حساب";
-
   } else {
-
     subtitle.textContent =
       "یک حساب جدید بسازید";
 
@@ -312,7 +448,6 @@ async function registerUser(
   email,
   password
 ) {
-
   const {
     data,
     error
@@ -345,21 +480,14 @@ async function registerUser(
     );
   }
 
-  /*
-   * کاربر توسط Edge Function ساخته شده
-   * و email_confirm=true است.
-   *
-   * بنابراین حالا مستقیماً با همان
-   * ایمیل و رمز وارد می‌شویم.
-   */
-
   const {
     data: loginData,
     error: loginError
-  } = await supabase.auth.signInWithPassword({
-    email,
-    password
-  });
+  } =
+    await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
 
   if (loginError) {
     throw new Error(
@@ -388,37 +516,13 @@ async function loginUser(
   email,
   password
 ) {
-
-  const {
-    data,
-    error
-  } = await supabase.auth.signInWithPassword({
-    email,
-    password
-  });
-
-  if (error) {
-
-    const message =
-      error.message?.toLowerCase() || "";
-
-    if (
-      message.includes(
-        "invalid login credentials"
-      )
-    ) {
-      throw new Error(
-        "ایمیل یا رمز عبور اشتباه است."
-      );
-    }
-
-    throw new Error(
-      error.message ||
-      "ورود انجام نشد."
+  const session =
+    await signIn(
+      email,
+      password
     );
-  }
 
-  if (!data?.session) {
+  if (!session) {
     throw new Error(
       "ورود انجام نشد."
     );
@@ -439,7 +543,6 @@ function showAuthMessage(
   message,
   isError
 ) {
-
   const element =
     document.getElementById(
       "authMessage"
@@ -457,7 +560,6 @@ function showAuthMessage(
 }
 
 function clearAuthMessage() {
-
   const element =
     document.getElementById(
       "authMessage"

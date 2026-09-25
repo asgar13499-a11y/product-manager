@@ -14,10 +14,11 @@ function mod(a, b) {
   return a - Math.floor(a / b) * b;
 }
 
-/*
-  محاسبه سال کبیسه و شروع سال جلالی
-*/
-function jalCal(jy, withoutLeap) {
+/* =========================
+   JALALI CALENDAR
+========================= */
+
+function jalCal(jy, withoutLeap = false) {
   const bl = breaks.length;
   const gy = jy + 621;
 
@@ -31,32 +32,52 @@ function jalCal(jy, withoutLeap) {
   let march = 0;
   let n = 0;
 
-  if (jy < jp || jy >= breaks[bl - 1]) {
-    throw new Error("Invalid Jalali year: " + jy);
+  if (
+    jy < jp ||
+    jy >= breaks[bl - 1]
+  ) {
+    throw new Error(
+      "Invalid Jalali year: " + jy
+    );
   }
 
-  for (let i = 1; i < bl; i++) {
+  for (
+    let i = 1;
+    i < bl;
+    i++
+  ) {
     jm = breaks[i];
-    jump = jm - jp;
 
-    if (jy < jm) {
+    jump =
+      jm - jp;
+
+    if (
+      jy < jm
+    ) {
       break;
     }
 
     leapJ =
       leapJ +
       div(jump, 33) * 8 +
-      div(mod(jump, 33), 4);
+      div(
+        mod(jump, 33),
+        4
+      );
 
     jp = jm;
   }
 
-  n = jy - jp;
+  n =
+    jy - jp;
 
   leapJ =
     leapJ +
     div(n, 33) * 8 +
-    div(mod(n, 33) + 3, 4);
+    div(
+      mod(n, 33) + 3,
+      4
+    );
 
   if (
     mod(jump, 33) === 4 &&
@@ -67,23 +88,37 @@ function jalCal(jy, withoutLeap) {
 
   leapG =
     div(gy, 4) -
-    div((div(gy, 100) + 1) * 3, 4) -
+    div(
+      (div(gy, 100) + 1) * 3,
+      4
+    ) -
     150;
 
-  march = 20 + leapJ - leapG;
+  march =
+    20 +
+    leapJ -
+    leapG;
 
-  if (withoutLeap) {
+  if (
+    withoutLeap
+  ) {
     return {
       gy,
       march
     };
   }
 
-  if (jump - n < 6) {
+  if (
+    jump - n < 6
+  ) {
     n =
       n -
       jump +
-      div(jump + 4, 33) * 33;
+      div(
+        jump + 4,
+        33
+      ) *
+        33;
   }
 
   leap =
@@ -92,7 +127,9 @@ function jalCal(jy, withoutLeap) {
       4
     );
 
-  if (leap === -1) {
+  if (
+    leap === -1
+  ) {
     leap = 4;
   }
 
@@ -103,9 +140,10 @@ function jalCal(jy, withoutLeap) {
   };
 }
 
-/*
-  تبدیل جلالی به میلادی
-*/
+/* =========================
+   JALALI → GREGORIAN
+========================= */
+
 export function toGregorian(
   jy,
   jm,
@@ -115,14 +153,20 @@ export function toGregorian(
   jm = Number(jm);
   jd = Number(jd);
 
-  const r = jalCal(jy);
+  const r =
+    jalCal(jy);
 
-  const gy = r.gy;
-  const march = r.march;
+  const gy =
+    r.gy;
+
+  const march =
+    r.march;
 
   let days;
 
-  if (jm <= 6) {
+  if (
+    jm <= 6
+  ) {
     days =
       (jm - 1) * 31 +
       (jd - 1);
@@ -133,26 +177,34 @@ export function toGregorian(
       (jd - 1);
   }
 
-  const date = new Date(
-    gy,
-    2,
-    march
-  );
+  const date =
+    new Date(
+      gy,
+      2,
+      march
+    );
 
   date.setDate(
-    date.getDate() + days
+    date.getDate() +
+      days
   );
 
   return {
-    gy: date.getFullYear(),
-    gm: date.getMonth() + 1,
-    gd: date.getDate()
+    gy:
+      date.getFullYear(),
+
+    gm:
+      date.getMonth() + 1,
+
+    gd:
+      date.getDate()
   };
 }
 
-/*
-  تبدیل میلادی به جلالی
-*/
+/* =========================
+   GREGORIAN → JALALI
+========================= */
+
 export function toJalaali(
   gy,
   gm,
@@ -162,26 +214,31 @@ export function toJalaali(
   gm = Number(gm);
   gd = Number(gd);
 
-  const jy = gy - 621;
+  const jy =
+    gy - 621;
 
-  const r = jalCal(
-    jy,
-    false
-  );
+  const r =
+    jalCal(
+      jy,
+      false
+    );
 
-  const march = r.march;
+  const march =
+    r.march;
 
-  const gDate = new Date(
-    gy,
-    gm - 1,
-    gd
-  );
+  const gDate =
+    new Date(
+      gy,
+      gm - 1,
+      gd
+    );
 
-  const marchDate = new Date(
-    r.gy,
-    2,
-    march
-  );
+  const marchDate =
+    new Date(
+      r.gy,
+      2,
+      march
+    );
 
   let diff =
     Math.floor(
@@ -189,18 +246,22 @@ export function toJalaali(
         gDate.getTime() -
         marchDate.getTime()
       ) /
-      86400000
+        86400000
     );
 
-  let finalYear = jy;
+  let finalYear =
+    jy;
 
-  if (diff < 0) {
+  if (
+    diff < 0
+  ) {
     finalYear--;
 
-    const previous = jalCal(
-      finalYear,
-      false
-    );
+    const previous =
+      jalCal(
+        finalYear,
+        false
+      );
 
     const previousMarchDate =
       new Date(
@@ -215,17 +276,20 @@ export function toJalaali(
           gDate.getTime() -
           previousMarchDate.getTime()
         ) /
-        86400000
+          86400000
       );
   }
 
   let jm;
   let jd;
 
-  if (diff <= 185) {
-    jm = Math.floor(
-      diff / 31
-    ) + 1;
+  if (
+    diff <= 185
+  ) {
+    jm =
+      Math.floor(
+        diff / 31
+      ) + 1;
 
     jd =
       (diff % 31) + 1;
@@ -242,17 +306,22 @@ export function toJalaali(
   }
 
   return {
-    jy: finalYear,
+    jy:
+      finalYear,
+
     jm,
+
     jd
   };
 }
 
-/*
-  تاریخ امروز به جلالی
-*/
+/* =========================
+   TODAY
+========================= */
+
 export function todayJalali() {
-  const now = new Date();
+  const now =
+    new Date();
 
   return toJalaali(
     now.getFullYear(),
@@ -261,9 +330,26 @@ export function todayJalali() {
   );
 }
 
-/*
-  اعتبارسنجی تاریخ جلالی
-*/
+export function todayGregorian() {
+  const now =
+    new Date();
+
+  return {
+    gy:
+      now.getFullYear(),
+
+    gm:
+      now.getMonth() + 1,
+
+    gd:
+      now.getDate()
+  };
+}
+
+/* =========================
+   JALALI VALIDATION
+========================= */
+
 export function isValidJalaliDate(
   year,
   month,
@@ -298,9 +384,48 @@ export function isValidJalaliDate(
   return day <= maxDay;
 }
 
-/*
-  تعداد روزهای ماه جلالی
-*/
+/* =========================
+   GREGORIAN VALIDATION
+========================= */
+
+export function isValidGregorianDate(
+  year,
+  month,
+  day
+) {
+  year = Number(year);
+  month = Number(month);
+  day = Number(day);
+
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day)
+  ) {
+    return false;
+  }
+
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1
+  ) {
+    return false;
+  }
+
+  const maxDay =
+    gregorianMonthDays(
+      year,
+      month
+    );
+
+  return day <= maxDay;
+}
+
+/* =========================
+   JALALI MONTH DAYS
+========================= */
+
 export function jalaliMonthDays(
   year,
   month
@@ -308,39 +433,107 @@ export function jalaliMonthDays(
   year = Number(year);
   month = Number(month);
 
-  if (month >= 1 && month <= 6) {
+  if (
+    month >= 1 &&
+    month <= 6
+  ) {
     return 31;
   }
 
-  if (month >= 7 && month <= 11) {
+  if (
+    month >= 7 &&
+    month <= 11
+  ) {
     return 30;
   }
 
-  // اسفند
-  return isLeapJalaliYear(year)
-    ? 30
-    : 29;
+  if (
+    month === 12
+  ) {
+    return isLeapJalaliYear(
+      year
+    )
+      ? 30
+      : 29;
+  }
+
+  return 0;
 }
 
-/*
-  بررسی کبیسه بودن سال
-*/
+/* =========================
+   GREGORIAN MONTH DAYS
+========================= */
+
+export function gregorianMonthDays(
+  year,
+  month
+) {
+  year = Number(year);
+  month = Number(month);
+
+  if (
+    month < 1 ||
+    month > 12
+  ) {
+    return 0;
+  }
+
+  if (
+    month === 2
+  ) {
+    return isLeapGregorianYear(
+      year
+    )
+      ? 29
+      : 28;
+  }
+
+  if (
+    month === 4 ||
+    month === 6 ||
+    month === 9 ||
+    month === 11
+  ) {
+    return 30;
+  }
+
+  return 31;
+}
+
+/* =========================
+   LEAP YEARS
+========================= */
+
 export function isLeapJalaliYear(
   year
 ) {
-  const r = jalCal(
-    Number(year),
-    false
-  );
+  const r =
+    jalCal(
+      Number(year),
+      false
+    );
 
   return r.leap === 0;
 }
 
-/*
-  تبدیل تاریخ جلالی به Date میلادی
-  ساعت را روی ظهر قرار می‌دهیم تا مشکل
-  تغییر ساعت تابستانی/زمستانی ایجاد نشود.
-*/
+export function isLeapGregorianYear(
+  year
+) {
+  year = Number(year);
+
+  return (
+    year % 4 === 0 &&
+    (
+      year % 100 !== 0 ||
+      year % 400 === 0
+    )
+  );
+}
+
+/* =========================
+   JALALI → JS DATE
+========================= */
+
 export function jalaliDate(
   year,
   month,
@@ -364,22 +557,448 @@ export function jalaliDate(
   );
 }
 
-/*
-  اختلاف دقیق دو تاریخ جلالی
-  خروجی:
-  سال + ماه + روز
+/* =========================
+   GREGORIAN → JS DATE
+========================= */
+
+export function gregorianDate(
+  year,
+  month,
+  day
+) {
+  return new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    12,
+    0,
+    0,
+    0
+  );
+}
+
+/* =========================
+   GENERIC DATE → JS DATE
+=========================
+
+calendar:
+"jalali"
+"gregorian"
 */
+
+export function calendarDate(
+  calendar,
+  year,
+  month,
+  day
+) {
+  if (
+    calendar ===
+    "gregorian"
+  ) {
+    return gregorianDate(
+      year,
+      month,
+      day
+    );
+  }
+
+  return jalaliDate(
+    year,
+    month,
+    day
+  );
+}
+
+/* =========================
+   GENERIC VALIDATION
+========================= */
+
+export function isValidCalendarDate(
+  calendar,
+  year,
+  month,
+  day
+) {
+  if (
+    calendar ===
+    "gregorian"
+  ) {
+    return isValidGregorianDate(
+      year,
+      month,
+      day
+    );
+  }
+
+  return isValidJalaliDate(
+    year,
+    month,
+    day
+  );
+}
+
+/* =========================
+   DATE OBJECT
+========================= */
+
+export function createCalendarDate(
+  calendar,
+  year,
+  month,
+  day
+) {
+  return {
+    calendar:
+      calendar ===
+      "gregorian"
+        ? "gregorian"
+        : "jalali",
+
+    year:
+      Number(year),
+
+    month:
+      Number(month),
+
+    day:
+      Number(day)
+  };
+}
+
+/* =========================
+   CONVERT ANY DATE
+   TO GREGORIAN
+========================= */
+
+export function calendarToGregorian(
+  date
+) {
+  if (
+    !date
+  ) {
+    return null;
+  }
+
+  if (
+    date.calendar ===
+    "gregorian"
+  ) {
+    return {
+      gy:
+        Number(date.year),
+
+      gm:
+        Number(date.month),
+
+      gd:
+        Number(date.day)
+    };
+  }
+
+  return toGregorian(
+    date.year,
+    date.month,
+    date.day
+  );
+}
+
+/* =========================
+   CONVERT ANY DATE
+   TO JALALI
+========================= */
+
+export function calendarToJalali(
+  date
+) {
+  if (
+    !date
+  ) {
+    return null;
+  }
+
+  if (
+    date.calendar ===
+    "jalali"
+  ) {
+    return {
+      jy:
+        Number(date.year),
+
+      jm:
+        Number(date.month),
+
+      jd:
+        Number(date.day)
+    };
+  }
+
+  return toJalaali(
+    date.year,
+    date.month,
+    date.day
+  );
+}
+
+/* =========================
+   COMPARE ANY TWO DATES
+========================= */
+
+export function compareCalendarDates(
+  a,
+  b
+) {
+  const da =
+    calendarDate(
+      a.calendar,
+      a.year,
+      a.month,
+      a.day
+    ).getTime();
+
+  const db =
+    calendarDate(
+      b.calendar,
+      b.year,
+      b.month,
+      b.day
+    ).getTime();
+
+  if (
+    da < db
+  ) {
+    return -1;
+  }
+
+  if (
+    da > db
+  ) {
+    return 1;
+  }
+
+  return 0;
+}
+
+/* =========================
+   DIFFERENCE IN DAYS
+========================= */
+
+export function differenceInDays(
+  start,
+  end
+) {
+  const startDate =
+    calendarDate(
+      start.calendar,
+      start.year,
+      start.month,
+      start.day
+    );
+
+  const endDate =
+    calendarDate(
+      end.calendar,
+      end.year,
+      end.month,
+      end.day
+    );
+
+  return Math.round(
+    (
+      endDate.getTime() -
+      startDate.getTime()
+    ) /
+      86400000
+  );
+}
+
+/* =========================
+   DIFFERENCE ANY TWO DATES
+=========================
+
+خروجی تقریبی بر اساس تقویم
+تاریخ شروع است.
+*/
+
+export function differenceCalendarDates(
+  start,
+  end
+) {
+  if (
+    start.calendar ===
+      "jalali" &&
+    end.calendar ===
+      "jalali"
+  ) {
+    return difference(
+      start,
+      end
+    );
+  }
+
+  const totalDays =
+    differenceInDays(
+      start,
+      end
+    );
+
+  if (
+    totalDays < 0
+  ) {
+    return {
+      years: 0,
+      months: 0,
+      days: 0
+    };
+  }
+
+  if (
+    totalDays === 0
+  ) {
+    return {
+      years: 0,
+      months: 0,
+      days: 0
+    };
+  }
+
+  /*
+    برای محاسبه ترکیبی،
+    ابتدا تاریخ پایان را به
+    تقویم شروع تبدیل می‌کنیم.
+  */
+
+  const endInStartCalendar =
+    start.calendar ===
+    "jalali"
+      ? calendarToJalali(
+          end
+        )
+      : calendarToGregorian(
+          end
+        );
+
+  const normalizedEnd = {
+    calendar:
+      start.calendar,
+
+    year:
+      start.calendar ===
+      "jalali"
+        ? endInStartCalendar.jy
+        : endInStartCalendar.gy,
+
+    month:
+      start.calendar ===
+      "jalali"
+        ? endInStartCalendar.jm
+        : endInStartCalendar.gm,
+
+    day:
+      start.calendar ===
+      "jalali"
+        ? endInStartCalendar.jd
+        : endInStartCalendar.gd
+  };
+
+  let years =
+    normalizedEnd.year -
+    start.year;
+
+  let months =
+    normalizedEnd.month -
+    start.month;
+
+  let days =
+    normalizedEnd.day -
+    start.day;
+
+  if (
+    days < 0
+  ) {
+    months--;
+
+    let previousMonth =
+      normalizedEnd.month - 1;
+
+    let previousYear =
+      normalizedEnd.year;
+
+    if (
+      previousMonth === 0
+    ) {
+      previousMonth =
+        12;
+
+      previousYear--;
+    }
+
+    const monthDays =
+      start.calendar ===
+      "jalali"
+        ? jalaliMonthDays(
+            previousYear,
+            previousMonth
+          )
+        : gregorianMonthDays(
+            previousYear,
+            previousMonth
+          );
+
+    days +=
+      monthDays;
+  }
+
+  if (
+    months < 0
+  ) {
+    years--;
+
+    months += 12;
+  }
+
+  if (
+    years < 0
+  ) {
+    return {
+      years: 0,
+      months: 0,
+      days: 0
+    };
+  }
+
+  return {
+    years,
+    months,
+    days
+  };
+}
+
+/* =========================
+   OLD DIFFERENCE FUNCTION
+========================= */
+
 export function difference(
   start,
   end
 ) {
-  let sy = Number(start.year);
-  let sm = Number(start.month);
-  let sd = Number(start.day);
+  let sy =
+    Number(start.year);
 
-  const ey = Number(end.year);
-  const em = Number(end.month);
-  const ed = Number(end.day);
+  let sm =
+    Number(start.month);
+
+  let sd =
+    Number(start.day);
+
+  const ey =
+    Number(end.year);
+
+  const em =
+    Number(end.month);
+
+  const ed =
+    Number(end.day);
 
   let months =
     (ey - sy) * 12 +
@@ -388,7 +1007,9 @@ export function difference(
   let days =
     ed - sd;
 
-  if (days < 0) {
+  if (
+    days < 0
+  ) {
     months--;
 
     let previousMonth =
@@ -397,7 +1018,9 @@ export function difference(
     let previousYear =
       ey;
 
-    if (previousMonth === 0) {
+    if (
+      previousMonth === 0
+    ) {
       previousMonth = 12;
       previousYear--;
     }
@@ -409,7 +1032,9 @@ export function difference(
       );
   }
 
-  if (months < 0) {
+  if (
+    months < 0
+  ) {
     return {
       years: 0,
       months: 0,
@@ -432,13 +1057,10 @@ export function difference(
   };
 }
 
-/*
-  مقایسه دو تاریخ جلالی
-  خروجی:
-  -1 = تاریخ اول قبل از دوم
-   0 = برابر
-   1 = تاریخ اول بعد از دوم
-*/
+/* =========================
+   OLD COMPARE FUNCTION
+========================= */
+
 export function compareDates(
   a,
   b
@@ -457,8 +1079,17 @@ export function compareDates(
       b.day
     ).getTime();
 
-  if (da < db) return -1;
-  if (da > db) return 1;
+  if (
+    da < db
+  ) {
+    return -1;
+  }
+
+  if (
+    da > db
+  ) {
+    return 1;
+  }
 
   return 0;
 }

@@ -43,9 +43,10 @@ button {
   padding-bottom: 90px;
 }
 
-/* =========================
+
+/* =========================================================
    TOPBAR
-========================= */
+========================================================= */
 
 .topbar {
   position: relative;
@@ -129,19 +130,32 @@ button {
   color: #fff;
 
   font-size: 25px;
+
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease;
 }
 
-/* =========================
+.back-button:active {
+  transform: scale(0.94);
+
+  background:
+    rgba(255, 255, 255, 0.23);
+}
+
+
+/* =========================================================
    MAIN
-========================= */
+========================================================= */
 
 main {
   padding: 20px;
 }
 
-/* =========================
+
+/* =========================================================
    WELCOME
-========================= */
+========================================================= */
 
 .welcome-card {
   display: flex;
@@ -206,9 +220,10 @@ main {
   font-size: 30px;
 }
 
-/* =========================
+
+/* =========================================================
    STATS
-========================= */
+========================================================= */
 
 .stats {
   display: grid;
@@ -276,9 +291,10 @@ main {
   font-size: 20px;
 }
 
-/* =========================
+
+/* =========================================================
    ACTION
-========================= */
+========================================================= */
 
 .actions {
   margin-bottom: 25px;
@@ -312,6 +328,18 @@ main {
   box-shadow:
     0 10px 25px
     rgba(49, 91, 234, 0.2);
+
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.main-button:active {
+  transform: scale(0.985);
+
+  box-shadow:
+    0 6px 18px
+    rgba(49, 91, 234, 0.17);
 }
 
 .main-button > span {
@@ -346,9 +374,10 @@ main {
   font-size: 11px;
 }
 
-/* =========================
+
+/* =========================================================
    SECTION TITLE
-========================= */
+========================================================= */
 
 .section-title {
   display: flex;
@@ -370,9 +399,10 @@ main {
   font-size: 12px;
 }
 
-/* =========================
+
+/* =========================================================
    PRODUCTS
-========================= */
+========================================================= */
 
 .products-list {
   display: flex;
@@ -406,6 +436,12 @@ main {
 
 .product-card:active {
   transform: scale(0.985);
+}
+
+.product-card:hover {
+  box-shadow:
+    0 8px 26px
+    rgba(30, 60, 120, 0.09);
 }
 
 .product-image {
@@ -499,6 +535,8 @@ main {
 .product-card-info {
   display: flex;
 
+  flex-wrap: wrap;
+
   gap: 15px;
 
   margin-top: 10px;
@@ -526,9 +564,10 @@ main {
   color: #d63031;
 }
 
-/* =========================
+
+/* =========================================================
    EMPTY
-========================= */
+========================================================= */
 
 .empty-state {
   padding: 50px 20px;
@@ -564,9 +603,10 @@ main {
   font-size: 12px;
 }
 
-/* =========================
+
+/* =========================================================
    FORM
-========================= */
+========================================================= */
 
 .product-form {
   display: flex;
@@ -623,17 +663,27 @@ main {
   font-size: 13px;
 
   background: #fafbfc;
+
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .form-section input:focus {
   border-color: #5275e8;
 
   background: #fff;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(49, 91, 234, 0.08);
 }
 
-/* =========================
-   DATE
-========================= */
+
+/* =========================================================
+   DATE BUTTON
+========================================================= */
 
 .date-picker-button {
   width: 100%;
@@ -656,10 +706,78 @@ main {
   color: #4f5869;
 
   text-align: right;
+
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.12s ease;
 }
 
-.date-picker-button span:first-child {
+.date-picker-button:hover {
+  border-color: #c8d2ed;
+
+  background: #fff;
+}
+
+.date-picker-button:active {
+  transform: scale(0.99);
+}
+
+.date-picker-button > span:first-child {
+  width: 34px;
+  height: 34px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 10px;
+
+  background: #edf2ff;
+
   font-size: 18px;
+}
+
+.date-picker-button .date-value {
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: flex-start;
+
+  justify-content: center;
+
+  gap: 2px;
+
+  flex: 1;
+
+  min-width: 0;
+}
+
+.date-picker-button .date-value strong {
+  color: #4f5869;
+
+  font-size: 12px;
+
+  font-weight: 700;
+}
+
+.date-picker-button .date-value small {
+  color: #9299a6;
+
+  font-size: 9px;
+}
+
+.date-picker-button .date-calendar-label {
+  display: block;
+
+  margin-top: 3px;
+
+  color: #9299a6;
+
+  font-size: 9px;
 }
 
 .date-difference {
@@ -690,9 +808,10 @@ main {
   color: #d63031;
 }
 
-/* =========================
+
+/* =========================================================
    PHOTO
-========================= */
+========================================================= */
 
 .photo-button {
   display: flex !important;
@@ -710,6 +829,16 @@ main {
   background: #fafbfc;
 
   cursor: pointer;
+
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.photo-button:hover {
+  border-color: #9eb1e8;
+
+  background: #f8faff;
 }
 
 .photo-button > span {
@@ -750,9 +879,10 @@ main {
   border-radius: 16px;
 }
 
-/* =========================
-   SAVE
-========================= */
+
+/* =========================================================
+   SAVE / DELETE
+========================================================= */
 
 .save-button {
   width: 100%;
@@ -779,6 +909,20 @@ main {
   box-shadow:
     0 8px 20px
     rgba(49, 91, 234, 0.16);
+
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.save-button:active {
+  transform: scale(0.985);
+}
+
+.save-button:disabled {
+  opacity: 0.6;
+
+  cursor: not-allowed;
 }
 
 .delete-button {
@@ -797,11 +941,22 @@ main {
   font-size: 14px;
 
   font-weight: 700;
+
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease;
 }
 
-/* =========================
-   CALENDAR
-========================= */
+.delete-button:active {
+  transform: scale(0.985);
+
+  background: #ffdddd;
+}
+
+
+/* =========================================================
+   CALENDAR OVERLAY
+========================================================= */
 
 .calendar-overlay {
   position: fixed;
@@ -819,7 +974,26 @@ main {
 
   background:
     rgba(20, 28, 45, 0.48);
+
+  animation:
+    calendarOverlayIn
+    0.15s ease;
 }
+
+@keyframes calendarOverlayIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+
+/* =========================================================
+   CALENDAR
+========================================================= */
 
 .calendar {
   width: 100%;
@@ -835,7 +1009,125 @@ main {
   box-shadow:
     0 20px 60px
     rgba(0, 0, 0, 0.2);
+
+  animation:
+    calendarIn
+    0.18s ease;
 }
+
+@keyframes calendarIn {
+  from {
+    opacity: 0;
+
+    transform:
+      translateY(12px)
+      scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+
+    transform:
+      translateY(0)
+      scale(1);
+  }
+}
+
+
+/* =========================================================
+   CALENDAR TYPE SWITCH
+========================================================= */
+
+.calendar-type-switch {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, 1fr);
+
+  gap: 7px;
+
+  margin-bottom: 14px;
+
+  padding: 5px;
+
+  border-radius: 14px;
+
+  background: #f3f5f9;
+}
+
+.calendar-type-button {
+  width: 100%;
+
+  padding: 10px 8px;
+
+  border: 0;
+
+  border-radius: 10px;
+
+  background: transparent;
+
+  color: #7d8492;
+
+  font-family: inherit;
+
+  font-size: 11px;
+
+  font-weight: 600;
+
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
+}
+
+.calendar-type-button:active {
+  transform: scale(0.97);
+}
+
+.calendar-type-button.active {
+  background: #fff;
+
+  color: #315bea;
+
+  box-shadow:
+    0 3px 10px
+    rgba(30, 60, 120, 0.08);
+}
+
+
+/* =========================================================
+   CALENDAR MODE LABEL
+========================================================= */
+
+.calendar-mode-label {
+  margin-bottom: 10px;
+
+  padding: 8px 10px;
+
+  border-radius: 10px;
+
+  background: #f5f7fb;
+
+  color: #697181;
+
+  text-align: center;
+
+  font-size: 10px;
+
+  line-height: 1.7;
+}
+
+.calendar-mode-label strong {
+  color: #315bea;
+
+  margin-right: 3px;
+}
+
+
+/* =========================================================
+   CALENDAR HEADER
+========================================================= */
 
 .calendar-header {
   display: flex;
@@ -844,12 +1136,16 @@ main {
 
   justify-content: space-between;
 
+  gap: 8px;
+
   margin-bottom: 20px;
 }
 
 .calendar-header button {
   width: 40px;
   height: 40px;
+
+  flex-shrink: 0;
 
   border: 0;
 
@@ -860,11 +1156,50 @@ main {
   color: #315bea;
 
   font-size: 25px;
+
+  transition:
+    transform 0.12s ease,
+    background 0.12s ease;
 }
 
-.calendar-header strong {
-  font-size: 15px;
+.calendar-header button:active {
+  transform: scale(0.92);
+
+  background: #e4eaff;
 }
+
+.calendar-title {
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 3px;
+
+  min-width: 0;
+
+  text-align: center;
+}
+
+.calendar-title strong {
+  font-size: 15px;
+
+  font-weight: 800;
+}
+
+.calendar-title small {
+  color: #9299a6;
+
+  font-size: 10px;
+}
+
+
+/* =========================================================
+   CALENDAR WEEKDAYS
+========================================================= */
 
 .weekdays,
 .calendar-days {
@@ -886,7 +1221,14 @@ main {
   color: #9299a6;
 
   font-size: 11px;
+
+  font-weight: 600;
 }
+
+
+/* =========================================================
+   CALENDAR DAYS
+========================================================= */
 
 .calendar-days button,
 .calendar-empty {
@@ -905,15 +1247,58 @@ main {
   font-size: 12px;
 }
 
+.calendar-days button {
+  position: relative;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
+  font-family: inherit;
+
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
 .calendar-days button:hover {
   background: #f0f3ff;
+}
+
+.calendar-days button:active {
+  transform: scale(0.92);
 }
 
 .calendar-days button.selected {
   background: #315bea;
 
   color: #fff;
+
+  font-weight: 700;
 }
+
+.calendar-days button.today {
+  box-shadow:
+    inset 0 0 0 1.5px #315bea;
+}
+
+.calendar-days button.selected.today {
+  box-shadow: none;
+}
+
+.calendar-empty {
+  pointer-events: none;
+}
+
+
+/* =========================================================
+   CLOSE CALENDAR
+========================================================= */
 
 .close-calendar {
   width: 100%;
@@ -931,11 +1316,22 @@ main {
   color: #555e6e;
 
   font-size: 13px;
+
+  transition:
+    background 0.12s ease,
+    transform 0.12s ease;
 }
 
-/* =========================
+.close-calendar:active {
+  transform: scale(0.985);
+
+  background: #e8ebf0;
+}
+
+
+/* =========================================================
    DETAILS
-========================= */
+========================================================= */
 
 .details-card {
   padding: 22px;
@@ -1052,6 +1448,8 @@ main {
   margin-top: 5px;
 
   font-size: 12px;
+
+  line-height: 1.6;
 }
 
 .details-actions {
@@ -1064,9 +1462,10 @@ main {
   margin-top: 15px;
 }
 
-/* =========================
+
+/* =========================================================
    BOTTOM NAV
-========================= */
+========================================================= */
 
 .bottom-nav {
   position: fixed;
@@ -1129,6 +1528,14 @@ main {
   background: transparent;
 
   color: #949ba8;
+
+  transition:
+    color 0.15s ease,
+    transform 0.12s ease;
+}
+
+.nav-item:active {
+  transform: scale(0.92);
 }
 
 .nav-item span {
@@ -1169,9 +1576,10 @@ main {
   font-size: 27px;
 }
 
-/* =========================
+
+/* =========================================================
    AUTH
-========================= */
+========================================================= */
 
 .auth-page {
   min-height: 100vh;
@@ -1280,6 +1688,11 @@ main {
   direction: ltr;
 
   text-align: left;
+
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .auth-card input:focus {
@@ -1355,11 +1768,28 @@ main {
   line-height: 2;
 }
 
-/* =========================
+
+/* =========================================================
+   LOADING / DISABLED
+========================================================= */
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+input:disabled {
+  opacity: 0.7;
+
+  cursor: not-allowed;
+}
+
+
+/* =========================================================
    MOBILE
-========================= */
+========================================================= */
 
 @media (max-width: 480px) {
+
   .topbar {
     padding:
       18px 15px;
@@ -1399,6 +1829,10 @@ main {
     padding: 10px;
   }
 
+  .product-card-info {
+    gap: 9px;
+  }
+
   .details-grid {
     gap: 5px;
   }
@@ -1408,8 +1842,82 @@ main {
       11px 4px;
   }
 
+  .calendar {
+    max-width: 370px;
+
+    padding: 17px;
+  }
+
+  .calendar-type-button {
+    padding: 9px 6px;
+
+    font-size: 10px;
+  }
+
+  .calendar-header {
+    margin-bottom: 16px;
+  }
+
+  .weekdays,
+  .calendar-days {
+    gap: 4px;
+  }
+
+  .calendar-days button,
+  .calendar-empty {
+    border-radius: 9px;
+
+    font-size: 11px;
+  }
+
   .auth-card {
     padding:
       28px 20px;
+  }
+}
+
+
+/* =========================================================
+   VERY SMALL SCREENS
+========================================================= */
+
+@media (max-width: 350px) {
+
+  .topbar {
+    padding:
+      16px 12px;
+  }
+
+  main {
+    padding: 12px;
+  }
+
+  .welcome-card {
+    gap: 10px;
+  }
+
+  .box-icon {
+    width: 52px;
+    height: 52px;
+
+    font-size: 25px;
+  }
+
+  .product-image {
+    width: 62px;
+    height: 62px;
+  }
+
+  .product-card {
+    gap: 9px;
+  }
+
+  .calendar {
+    padding: 14px;
+  }
+
+  .calendar-header button {
+    width: 36px;
+    height: 36px;
   }
 }
